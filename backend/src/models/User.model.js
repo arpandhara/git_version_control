@@ -1,0 +1,68 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+
+const userSchema = new mongoose.Schema(
+    {
+        email: {
+            type: String,
+            required: true,
+            unique: true,
+            trim: true,
+            lowercase: true,
+            index: true,
+        },
+        passwordHash: {
+            type: String,
+            // Nullable for users who sign up exclusively via Google Auth
+        },
+        googleId: {
+            type: String,
+            unique: true,
+            sparse: true, // Allows multiple null values for local auth users
+            index: true,
+        },
+        securitySalt: {
+            type: String,
+            // Automatically generated for every new user
+        },
+        isEmailVerified: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    { timestamps: true }
+);
+
+// Pre-save hook to generate securitySalt and hash passwords
+userSchema.pre('save', async function () {
+    // Ensure every user has a security salt for JWT signing (Pepper + Salt)
+    if (!this.securitySalt) {
+        this.securitySalt = crypto.randomBytes(16).toString('hex');
+    }
+
+    // Only hash the password if it's new or has been modified
+    if (!this.isModified('passwordHash') || !this.passwordHash) return;
+
+    try {
+        const salt = await bcrypt.genSalt(10);
+        this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+    } catch (error) {
+        throw error;
+    }
+});
+
+// Instance method to verify password
+userSchema.methods.isPasswordCorrect = async function (password) {
+    if (!this.passwordHash) return false; 
+    return await bcrypt.compare(password, this.passwordHash);
+};
+
+// Instance method to instantly invalidate all active JWTs for the user
+userSchema.methods.invalidateAllSessions = async function () {
+    this.securitySalt = crypto.randomBytes(16).toString('hex');
+    await this.save({ validateModifiedOnly: true });
+};
+
+const User = mongoose.model('User', userSchema);
+module.exports = User;

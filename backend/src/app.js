@@ -15,7 +15,7 @@ setupSwagger(app);
 
 app.use(helmet());
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: true, // Dynamically reflects the request origin
     credentials: true,
 }));
 app.use(cookieParser());

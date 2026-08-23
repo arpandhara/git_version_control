@@ -1,0 +1,39 @@
+{
+  "name": "temp-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.0",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.2.0"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "@react-oauth/google": "^0.13.5",
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "animejs": "^4.5.0",
+    "axios": "^1.19.0",
+    "framer-motion": "^13.1.1",
+    "gsap": "^3.15.0",
+    "lottie-react": "^3.1.0",
+    "lucide-react": "^1.33.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-hook-form": "^7.86.0",
+    "react-router-dom": "^7.18.2",
+    "sonner": "^2.0.8",
+    "three": "^0.185.1",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.15"
+  }
+}

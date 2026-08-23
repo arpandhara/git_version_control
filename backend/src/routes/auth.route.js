@@ -9,7 +9,8 @@ const {
     resetPassword,
     googleCallback, 
     refresh, 
-    cliLogin 
+    cliLogin,
+    logout
 } = require('../controllers/auth.controller');
 const { 
     registerSchema, 
@@ -233,5 +234,17 @@ router.post('/refresh', refresh);
  *         description: Successfully logged in, returns tokens
  */
 router.post('/cli/login', validate(cliLoginSchema), cliLogin);
+
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Successfully logged out
+ */
+router.post('/logout', logout);
 
 module.exports = router;

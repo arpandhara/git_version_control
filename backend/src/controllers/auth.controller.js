@@ -216,6 +216,30 @@ const cliLogin = asyncHandler(async (req, res) => {
     });
 });
 
+const logout = asyncHandler(async (req, res) => {
+    const { refreshToken: existingToken } = req.cookies;
+    if (existingToken) {
+        const tokenHash = crypto.createHash('sha256').update(existingToken).digest('hex');
+        await Token.deleteOne({ tokenHash, type: 'REFRESH_TOKEN' });
+    }
+
+    res.clearCookie('accessToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict'
+    });
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict'
+    });
+
+    res.status(200).json({
+        success: true,
+        message: 'Logged out successfully'
+    });
+});
+
 module.exports = {
     register,
     login,
@@ -225,5 +249,6 @@ module.exports = {
     resetPassword,
     googleCallback,
     refresh,
-    cliLogin
+    cliLogin,
+    logout
 };

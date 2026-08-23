@@ -113,8 +113,11 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
     
-    // Don't reveal if user exists or not for security
+    // Don't reveal if user exists or not for security, unless it's a social login error
     if (user) {
+        if (user.googleId && !user.passwordHash) {
+            throw new ApiError(400, 'This account uses Google Sign-In. Please log in with Google.');
+        }
         await generateAndSendOtp(user, 'PASSWORD_RESET');
     }
 

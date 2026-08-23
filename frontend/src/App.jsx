@@ -6,6 +6,7 @@ import SignUp from './pages/SignUp';
 import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
 import OnboardingFlow from './pages/Onboarding/OnboardingFlow';
+import Dashboard from './pages/Dashboard';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -27,6 +28,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/onboarding" element={<OnboardingFlow />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={
           <AuthLayout>
             <AnimatedRoutes />

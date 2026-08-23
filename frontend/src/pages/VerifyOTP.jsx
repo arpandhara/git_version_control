@@ -75,9 +75,9 @@ export default function VerifyOTP({ onBack, onVerify }) {
         
         const user = res.data.data.user;
         if (!user.username) {
-          navigate('/onboarding');
+          navigate('/onboarding', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       } catch (err) {
         setIsLoading(false);

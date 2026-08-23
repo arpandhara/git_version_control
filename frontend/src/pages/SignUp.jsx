@@ -27,9 +27,9 @@ export default function SignUp() {
         
         const user = res.data.data.user;
         if (!user.username) {
-          navigate('/onboarding');
+          navigate('/onboarding', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       } catch (err) {
         jsonToast.error(err.response?.data?.message || 'Google Sign-Up failed');
@@ -45,9 +45,9 @@ export default function SignUp() {
     setIsLoading(true);
     try {
       await apiClient.post('/auth/register', { email, password });
-      jsonToast.success('Verification code sent to email');
+      jsonToast.success('Account created successfully');
       setIsLoading(false);
-      navigate('/verify', { state: { email } });
+      navigate('/verify', { state: { email }, replace: true });
     } catch (err) {
       setIsLoading(false);
       jsonToast.error(err.response?.data?.message || 'Failed to sign up');

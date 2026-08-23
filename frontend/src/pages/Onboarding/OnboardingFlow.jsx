@@ -20,14 +20,14 @@ const OnboardingFlow = () => {
         const user = response.data.data.user;
         if (user && user.username) {
           // Already onboarded
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         } else {
           setIsInitializing(false);
         }
       } catch (error) {
         // If unauthenticated (401), the apiClient interceptor will usually redirect to /
         // But just in case, we can also redirect here.
-        navigate('/');
+        navigate('/', { replace: true });
       }
     };
     checkOnboardingStatus();
@@ -38,7 +38,7 @@ const OnboardingFlow = () => {
 
   const nextStep = () => {
     if (step === 3) {
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
       return;
     }
     setStep((s) => s + 1);

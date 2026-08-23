@@ -17,7 +17,10 @@ apiClient.interceptors.response.use(
         await axios.post('http://localhost:3000/api/v1/auth/refresh', {}, { withCredentials: true });
         return apiClient(originalRequest);
       } catch (refreshError) {
-        window.location.href = '/'; // Redirect to sign in
+        const publicRoutes = ['/', '/signup', '/forgot-password', '/verify'];
+        if (!publicRoutes.includes(window.location.pathname)) {
+          window.location.href = '/'; // Redirect to sign in
+        }
         return Promise.reject(refreshError);
       }
     }

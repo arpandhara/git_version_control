@@ -27,9 +27,9 @@ export default function SignIn() {
         
         const user = res.data.data.user;
         if (!user.username) {
-          navigate('/onboarding');
+          navigate('/onboarding', { replace: true });
         } else {
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true });
         }
       } catch (err) {
         jsonToast.error(err.response?.data?.message || 'Google Sign-In failed');
@@ -50,9 +50,9 @@ export default function SignIn() {
       
       const user = res.data.data.user;
       if (!user.username) {
-        navigate('/onboarding');
+        navigate('/onboarding', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       setIsLoading(false);

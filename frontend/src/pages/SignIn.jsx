@@ -19,12 +19,18 @@ export default function SignIn() {
     onSuccess: async (codeResponse) => {
       try {
         setIsLoading(true);
-        await apiClient.post('/auth/google/callback', {
+        const res = await apiClient.post('/auth/google/callback', {
           code: codeResponse.code,
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-In successful');
-        navigate('/dashboard'); 
+        
+        const user = res.data.data.user;
+        if (!user.username) {
+          navigate('/onboarding');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (err) {
         jsonToast.error(err.response?.data?.message || 'Google Sign-In failed');
       } finally {
@@ -38,13 +44,23 @@ export default function SignIn() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await apiClient.post('/auth/login', { email, password });
+      const res = await apiClient.post('/auth/login', { email, password });
       jsonToast.success('Login successful');
       setIsLoading(false);
-      navigate('/dashboard');
+      
+      const user = res.data.data.user;
+      if (!user.username) {
+        navigate('/onboarding');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setIsLoading(false);
-      jsonToast.error(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      if (err.response?.status === 404) {
+        jsonToast.error('Account does not exist. Please create an account.');
+      } else {
+        jsonToast.error(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      }
     }
   };
 
@@ -64,7 +80,7 @@ export default function SignIn() {
 
       {/* Social Logins */}
       <div className="space-y-3 mb-8 font-sans text-sm font-medium">
-        <button 
+        <button
           onClick={() => handleGoogleLogin()}
           type="button"
           disabled={isLoading}
@@ -146,7 +162,7 @@ export default function SignIn() {
             </div>
           ) : (
             <>
-              <span className='text-emerald-500'>$russty</span>
+              <span className='text-emerald-500'>$rusty</span>
               <span>Sign In</span>
               <svg
                 className="w-4 h-4 transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300"

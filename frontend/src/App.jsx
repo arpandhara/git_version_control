@@ -5,6 +5,7 @@ import SignIn from './pages/SignIn';
 import SignUp from './pages/SignUp';
 import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
+import OnboardingFlow from './pages/Onboarding/OnboardingFlow';
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -24,9 +25,14 @@ function AnimatedRoutes() {
 function App() {
   return (
     <Router>
-      <AuthLayout>
-        <AnimatedRoutes />
-      </AuthLayout>
+      <Routes>
+        <Route path="/onboarding" element={<OnboardingFlow />} />
+        <Route path="*" element={
+          <AuthLayout>
+            <AnimatedRoutes />
+          </AuthLayout>
+        } />
+      </Routes>
     </Router>
   );
 }

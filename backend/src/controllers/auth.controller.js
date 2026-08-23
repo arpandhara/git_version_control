@@ -37,7 +37,7 @@ const register = asyncHandler(async (req, res) => {
     res.status(201).json({
         success: true,
         message: 'User created. Please check your email for the verification code.',
-        data: { user: { id: user._id, email: user.email, isEmailVerified: user.isEmailVerified } }
+        data: { user: { id: user._id, email: user.email, username: user.username, isEmailVerified: user.isEmailVerified } }
     });
 });
 
@@ -66,7 +66,7 @@ const login = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Login successful',
-        data: { user: { id: user._id, email: user.email, isEmailVerified: true } }
+        data: { user: { id: user._id, email: user.email, username: user.username, isEmailVerified: true } }
     });
 });
 
@@ -90,7 +90,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Email verified successfully. You are now logged in.',
-        data: { user: { id: user._id, email: user.email, isEmailVerified: true } }
+        data: { user: { id: user._id, email: user.email, username: user.username, isEmailVerified: true } }
     });
 });
 
@@ -160,7 +160,7 @@ const googleCallback = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'Google login successful',
-        data: { user: { id: user._id, email: user.email } }
+        data: { user: { id: user._id, email: user.email, username: user.username } }
     });
 });
 
@@ -212,7 +212,7 @@ const cliLogin = asyncHandler(async (req, res) => {
     res.status(200).json({
         success: true,
         message: 'CLI Login verified successfully',
-        data: { user: { id: user._id, email: user.email } }
+        data: { user: { id: user._id, email: user.email, username: user.username } }
     });
 });
 

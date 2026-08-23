@@ -46,3 +46,11 @@
 - [x] **Secure Password Reset**: Built `/forgot-password` and `/reset-password` flows utilizing OTPs. Passwords are reset securely, and all global sessions are revoked instantly via `securitySalt` rotation.
 - [x] **PAT Step-Up Authentication**: Gated sensitive token generation and revocation actions with an explicit OTP challenge (`/request-otp`).
 - [x] **CLI PAT Refactor**: Architected the CLI flow to use Personal Access Tokens (PATs) directly as long-lived Bearer tokens (100-year expiration), securely hashing and verifying them in real-time via the `protect` middleware, while retaining `/cli/login` as a credential verifier.
+
+## User Profiling System
+- [x] **Database Extensions**: Safely extended the `User` schema with `name`, `username`, `bio`, `gender`, `profilePicture`, `organization`, `location`, `localTime`, and `socialLinks`. Configured `username` to be unique, lowercase, and `sparse`.
+- [x] **Validation**: Implemented strict `zod` schemas (`user.validation.js`) to sanitize and validate payloads, including explicit enum checks for gender and specific social platforms (`insta`, `youtube`, `linkedin`), and URL constraints. Fix applied to correctly wrap schemas in `z.object()` for middleware compatibility.
+- [x] **API Logic**: Built `user.controller.js` to handle real-time username availability checks (`/check-username`), initial onboarding (`/onboarding`), and dynamic profile updates (`/profile`).
+- [x] **Conflict Resolution**: Implemented mathematical fallback logic during onboarding to generate 3 random username suggestions (e.g., `username1234`) when a duplicate key `409 Conflict` occurs.
+- [x] **Routing Integration**: Mounted the new user RESTful resource securely behind JWT `protect` middleware at `/api/v1/users` in `app.js`.
+- [x] **Security / Rate Limiting**: Added `checkUsernameLimiter` using `express-rate-limit` (max 20 requests per minute per IP) to the `GET /check-username` endpoint to prevent automated enumeration and DDoS attacks against the database index.

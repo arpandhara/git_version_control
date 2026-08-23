@@ -66,13 +66,19 @@ export default function VerifyOTP({ onBack, onVerify }) {
     } else {
       // If used as a standalone page (like Registration Verify)
       try {
-        await apiClient.post('/auth/verify-email', {
+        const res = await apiClient.post('/auth/verify-email', {
           email,
           otp: otpValue,
         });
         jsonToast.success('Email verified successfully');
         setIsLoading(false);
-        navigate('/'); // Go to signin after success
+        
+        const user = res.data.data.user;
+        if (!user.username) {
+          navigate('/onboarding');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (err) {
         setIsLoading(false);
         jsonToast.error(err.response?.data?.message || 'Verification failed');
@@ -154,7 +160,7 @@ export default function VerifyOTP({ onBack, onVerify }) {
             </div>
           ) : (
             <>
-              <span className='text-emerald-500'>$russty</span>
+              <span className='text-emerald-500'>$rusty</span>
               <span>Confirm Code</span>
               <svg
                 className="w-4 h-4 transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300"
@@ -171,7 +177,7 @@ export default function VerifyOTP({ onBack, onVerify }) {
       {/* Footer */}
       <div className="mt-8 text-center font-sans text-sm text-gray-400">
         Didn't receive the code?{' '}
-        <button 
+        <button
           onClick={handleResend}
           type="button"
           disabled={!email || resendStatus === 'Sending...'}

@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const authRouter = require('./routes/auth.route');
 const tokenRouter = require('./routes/token.route');
+const userRouter = require('./routes/user.route');
 const errorHandler = require('./middlewares/error.middleware');
 
 const app = express();
@@ -24,6 +25,7 @@ app.use(express.urlencoded({ extended: true, limit: '16kb' }));
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/tokens', tokenRouter);
+app.use('/api/v1/users', userRouter);
 
 app.use(errorHandler);
 

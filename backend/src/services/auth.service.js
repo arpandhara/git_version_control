@@ -32,12 +32,12 @@ const registerLocalUser = async (email, password) => {
 const loginLocalUser = async (email, password) => {
     const user = await User.findOne({ email });
     if (!user) {
-        throw new ApiError(401, 'Invalid email or password');
+        throw new ApiError(404, 'Account does not exist');
     }
 
     const isMatch = await user.isPasswordCorrect(password);
     if (!isMatch) {
-        throw new ApiError(401, 'Invalid email or password');
+        throw new ApiError(401, 'Invalid password');
     }
 
     return user;
@@ -117,11 +117,26 @@ const handleGoogleOAuth = async (code, redirectUri) => {
         user = await User.create({
             email: profile.email,
             googleId: profile.id,
+            isEmailVerified: true,
         });
-    } else if (!user.googleId) {
+    } else {
+        let hasChanges = false;
+        
         // Link existing local account to Google
-        user.googleId = profile.id;
-        await user.save();
+        if (!user.googleId) {
+            user.googleId = profile.id;
+            hasChanges = true;
+        }
+        
+        // Google has verified the email, so we can mark it as verified
+        if (!user.isEmailVerified) {
+            user.isEmailVerified = true;
+            hasChanges = true;
+        }
+
+        if (hasChanges) {
+            await user.save();
+        }
     }
 
     return user;

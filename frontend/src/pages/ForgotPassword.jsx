@@ -120,7 +120,7 @@ export default function ForgotPassword() {
                 </div>
               ) : (
                 <>
-                  <span className='text-emerald-500'>$russty</span>
+                  <span className='text-emerald-500'>$rusty</span>
                   <span>Sent Verification Code</span>
                   <svg className="w-4 h-4 transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 12h14" /><path d="m12 5 7 7-7 7" />

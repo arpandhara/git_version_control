@@ -19,12 +19,18 @@ export default function SignUp() {
     onSuccess: async (codeResponse) => {
       try {
         setIsLoading(true);
-        await apiClient.post('/auth/google/callback', {
+        const res = await apiClient.post('/auth/google/callback', {
           code: codeResponse.code,
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-Up successful');
-        navigate('/dashboard'); 
+        
+        const user = res.data.data.user;
+        if (!user.username) {
+          navigate('/onboarding');
+        } else {
+          navigate('/dashboard');
+        }
       } catch (err) {
         jsonToast.error(err.response?.data?.message || 'Google Sign-Up failed');
       } finally {
@@ -64,7 +70,7 @@ export default function SignUp() {
 
       {/* Social Logins */}
       <div className="space-y-3 mb-8 font-sans text-sm font-medium">
-        <button 
+        <button
           onClick={() => handleGoogleLogin()}
           type="button"
           disabled={isLoading}
@@ -141,7 +147,7 @@ export default function SignUp() {
             </div>
           ) : (
             <>
-              <span className='text-emerald-500'>$russty</span>
+              <span className='text-emerald-500'>$rusty</span>
               <span>Sign Up</span>
               <svg
                 className="w-4 h-4 transform -translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300"

@@ -30,6 +30,48 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        name: {
+            type: String,
+        },
+        username: {
+            type: String,
+            unique: true,
+            sparse: true,
+            lowercase: true,
+            trim: true,
+            index: true,
+        },
+        bio: {
+            type: String,
+            maxLength: 500,
+        },
+        gender: {
+            type: String,
+            enum: ['Male', 'Female', 'Non-binary', 'Prefer not to say'],
+        },
+        profilePicture: {
+            type: String,
+        },
+        organization: {
+            type: String,
+        },
+        location: {
+            city: String,
+            state: String,
+            country: String,
+        },
+        localTime: {
+            type: String,
+        },
+        socialLinks: [
+            {
+                platform: {
+                    type: String,
+                    enum: ['insta', 'youtube', 'linkedin'],
+                },
+                url: String,
+            },
+        ],
     },
     { timestamps: true }
 );

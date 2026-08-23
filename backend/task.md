@@ -1,100 +1,68 @@
-# Task: Two-Step Email Verification Engine (Resend) & Security Hardening
+# Task: Backend Implementation for User Onboarding & Profile Management
 
-## 1. Project Context & Current Progress
-The core backend architecture for the custom Version Control System (VCS) is built using Express, Node.js, MongoDB (Mongoose), and standard REST principles. Stateless JWTs (Salt & Pepper signature), direct Google OAuth 2.0, refresh token rotations, and CLI PAT endpoints are already implemented.
+## 🎯 Objective
+Implement the necessary backend infrastructure to support a progressive user profiling system. This includes an initial onboarding endpoint (capturing core identity information), a live username validation endpoint, and a comprehensive profile editing endpoint (allowing users to populate extended details over time).
 
-### Completed Milestones
-- [x] Server initialization, error handling (`ApiError`, `asyncHandler`), Winston logging.
-- [x] Security headers (`helmet`), strict CORS, body limits, cookie parser.
-- [x] User and Token schemas with `bcryptjs` hashing.
-- [x] Salt & Pepper JWT signing with user-specific dynamic DB salts.
-- [x] Local auth (`/register`, `/login`) and direct Google OAuth 2.0 (`/google/callback`).
-- [x] Session refresh endpoints with HTTP-only cookies and DB revocation tracking.
-- [x] Personal Access Token (PAT) generation and `/api/v1/auth/cli/login` endpoint.
-- [x] OpenAPI / Swagger documentation (`/api-docs`) and JSDoc annotations.
+## 🗄️ 1. Database Schema Updates (`User.model.js`)
+Update the existing User schema to accommodate the new profile fields. Ensure appropriate default values and validation rules are applied.
 
----
+*   **Required Core Fields:**
+    *   `name`: String (Required)
+    *   `username`: String (Required, Unique, Lowercase Index)
+    *   `email`: String (Required, Unique - *already exists*)
+*   **Optional Profile Fields (Nullable/Default Empty):**
+    *   `bio` (Description): String (Max length: ~500 chars)
+    *   `gender`: String (Enum: e.g., 'Male', 'Female', 'Non-binary', 'Prefer not to say')
+    *   `profilePicture`: String (URL to cloud storage, e.g., AWS S3/Cloudinary)
+    *   `organization`: String
+    *   `location`: Object containing:
+        *   `city`: String
+        *   `state`: String
+        *   `country`: String
+    *   `localTime`: String (Timezone identifier, e.g., 'UTC+05:30' or 'Asia/Kolkata')
+    *   `socialLinks`: Array of Objects or nested Object (e.g., `{ platform: String, url: String }` for LinkedIn, GitHub, Instagram, etc.)
 
-## 2. New Scope: Two-Step Email Verification & Action Guarding
-We are integrating **Resend** as the third-party transactional email provider. A 6-digit OTP (One-Time Password) challenge must gate the following critical actions:
-1. **User Registration:** Initial account activation requires verifying the user's email via OTP.
-2. **Password Reset:** Resetting a forgotten password requires a valid verification OTP.
-3. **PAT Management (Step-Up Authentication):** Creating, viewing, or revoking Personal Access Tokens requires a verified OTP challenge within a strict time window to prevent unauthorized token minting.
+## 🔗 2. API Endpoints Implementation
 
----
+### A. Live Username Check Endpoint
+**Route:** `GET /api/users/check-username?q=requestedName`
+*   **Purpose:** To provide real-time feedback on username availability during the frontend form fill.
+*   **Auth:** Requires valid JWT.
+*   **Behavior:** 
+    *   Performs a fast `findOne` query against the database index.
+    *   Returns `{ available: boolean }` allowing the frontend to immediately show a success checkmark or failure warning.
 
-## 3. Security Architecture for OTPs
+### B. Onboarding Endpoint
+**Route:** `PATCH /api/users/onboarding`
+*   **Purpose:** To capture the initial set of data immediately following account creation. 
+*   **Auth:** Requires valid JWT (User must be logged in).
+*   **Accepted Payload:**
+    *   `name` (Required)
+    *   `username` (Required)
+    *   `bio` (Optional)
+*   **Behavior:** 
+    *   Updates the existing user record.
+    *   **Duplicate Handling Fallback:** Catches duplicate key errors (MongoDB code `11000`) if a race condition occurs or the frontend check is bypassed. Returns an HTTP `409 Conflict` status along with an array of available `suggestions` (e.g., appending random numbers to the requested string).
+    *   *Note:* The PAT (Personal Access Token) generation step will be handled by the frontend calling the *existing* PAT endpoint sequentially after this onboarding request succeeds.
 
-### A. Generation & Storage Standards
-- **Format:** 6-digit numeric string generated via `crypto.randomInt(100000, 999999).toString()`.
-- **Hashing:** OTPs must **never** be stored in plaintext. Hash the OTP using `bcryptjs` before persisting it to the database.
-- **Expiration / TTL:** OTP records must expire after **10 to 15 minutes**. Use MongoDB TTL indexes (`expireAfterSeconds: 0`) to ensure automatic document cleanup.
-- **Attempt Limits & Rate Limiting:** Enforce a maximum of 3 invalid verification attempts per OTP. Lock or invalidate the OTP immediately upon exceeding attempts.
-- **Single-Use Invalidation:** Immediately delete or mark the OTP as `used: true` upon successful verification to prevent replay attacks.
+### C. Edit Profile Endpoint
+**Route:** `PATCH /api/users/profile`
+*   **Purpose:** To allow users to update any of their profile fields at a later time.
+*   **Auth:** Requires valid JWT.
+*   **Accepted Payload (All Optional):**
+    *   `name`, `username`, `bio`, `gender`, `profilePicture`, `organization`, `location`, `localTime`, `socialLinks`.
+*   **Behavior:**
+    *   Dynamically updates only the fields provided in the request body.
+    *   Ensures users cannot overwrite protected fields (like `_id`, `email`, or `password` through this specific endpoint).
 
-### B. Database Schema: `VerificationCode`
-```javascript
-{
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  email: { type: String, required: true },
-  codeHash: { type: String, required: true },
-  purpose: { 
-    type: String, 
-    enum: ['REGISTRATION_VERIFY', 'PASSWORD_RESET', 'PAT_ACTION'], 
-    required: true 
-  },
-  attempts: { type: Number, default: 0 },
-  maxAttempts: { type: Number, default: 3 },
-  expiresAt: { type: Date, required: true, index: { expires: 0 } },
-  isUsed: { type: Boolean, default: false }
-}
-```
+## 🛡️ 3. Validation & Middleware (`auth.validation.js`)
+*   **Zod Schemas:** Create strict Zod validation schemas for all endpoints to sanitize and parse incoming data.
+*   **Username Constraints:** Ensure the username contains no spaces, special characters (except underscores/dashes), and meets minimum/maximum length requirements.
+*   **URL Validation:** Ensure `profilePicture` and `socialLinks` values are valid URLs to prevent XSS or broken links.
 
----
-
-## 4. Execution Tasks for the AI Agent
-
-### Phase 1: Email Infrastructure Setup
-- [x] Install the official Resend SDK: `npm install resend`.
-- [x] Create `src/config/email.config.js` to initialize and export the Resend client using `RESEND_API_KEY`.
-- [x] Create `src/services/email.service.js` containing reusable email dispatch functions:
-  - `sendVerificationEmail(toEmail, otpCode)`
-  - `sendPasswordResetEmail(toEmail, otpCode)`
-  - `sendPatSecurityCodeEmail(toEmail, otpCode)`
-- [x] Design clean, responsive HTML email templates with clear branding, security advisories, and the formatted 6-digit code.
-
-### Phase 2: Verification Code Management
-- [x] Create `src/models/verificationCode.model.js` with the TTL index and schema defined above.
-- [x] Create `src/services/otp.service.js`:
-  - `generateAndSendOtp(user, purpose)`: Generates crypto-safe 6-digit code, hashes it with bcrypt, saves to DB, and triggers `email.service.js`.
-  - `verifyOtp(userId, inputOtp, purpose)`: Validates code hash, checks expiration/usage, increments attempt counters, and invalidates the token upon success.
-
-### Phase 3: Auth Route Integrations
-
-#### 1. Registration Flow (`/api/v1/auth/register` & `/verify-email`)
-- [x] Update `register` controller: create user with `isEmailVerified: false`, generate `REGISTRATION_VERIFY` OTP, and dispatch verification email.
-- [x] Create `POST /api/v1/auth/verify-email`: validates the 6-digit code, marks `isEmailVerified: true`, and issues initial session tokens.
-- [x] Create `POST /api/v1/auth/resend-verification`: rate-limited endpoint to resend a new OTP.
-
-#### 2. Password Reset Flow (`/forgot-password` & `/reset-password`)
-- [x] Create `POST /api/v1/auth/forgot-password`: generates `PASSWORD_RESET` OTP if the email exists (returns generic 200 response to prevent email enumeration).
-- [x] Create `POST /api/v1/auth/reset-password`: takes `email`, `otp`, and `newPassword`. Verifies OTP, updates password hash, rotates `securitySalt` (invalidating all active JWTs), and confirms success.
-
-#### 3. PAT Step-Up Verification (`/api/v1/tokens`)
-- [x] Create `POST /api/v1/tokens/request-otp`: triggers a `PAT_ACTION` OTP sent to the logged-in user's email.
-- [x] Update `POST /api/v1/tokens/generate`: require an `otp` in the request body (or a short-lived step-up verification token). Reject token creation if OTP is missing or invalid.
-- [x] Update `DELETE /api/v1/tokens/:tokenId`: require OTP validation before revoking sensitive production PATs.
-
----
-
-## 5. Required Environment Variables
-
-Add the following variables to `.env`:
-
-```env
-# RESEND EMAIL SERVICE
-RESEND_API_KEY=re_your_resend_api_key_here
-EMAIL_FROM="VCS Auth <onboarding@resend.dev>" # Use your verified domain once configured
-
-# OTP CONFIGURATION
-OTP_EXPIRATION_MINUTES=15
+## 🚀 4. Next Steps & Integration
+*   [ ] Update `User.model.js` with the new fields and unique lowercase index on `username`.
+*   [ ] Write Zod validation schemas for the new payload structures.
+*   [ ] Implement controllers for `checkUsername`, `updateOnboarding`, and `updateProfile`.
+*   [ ] Wire up the routes in `auth.route.js` (or a dedicated `user.route.js`).
+*   [ ] Test endpoints via Postman or Swagger to verify constraints and duplicate username handling logic (including the 409 conflict suggestions).

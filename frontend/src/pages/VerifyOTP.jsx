@@ -72,7 +72,7 @@ export default function VerifyOTP({ onBack, onVerify }) {
         });
         jsonToast.success('Email verified successfully');
         setIsLoading(false);
-        
+
         const user = res.data.data.user;
         if (!user.username) {
           navigate('/onboarding', { replace: true });

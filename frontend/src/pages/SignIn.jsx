@@ -24,7 +24,7 @@ export default function SignIn() {
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-In successful');
-        
+
         const user = res.data.data.user;
         if (!user.username) {
           navigate('/onboarding', { replace: true });
@@ -47,7 +47,7 @@ export default function SignIn() {
       const res = await apiClient.post('/auth/login', { email, password });
       jsonToast.success('Login successful');
       setIsLoading(false);
-      
+
       const user = res.data.data.user;
       if (!user.username) {
         navigate('/onboarding', { replace: true });

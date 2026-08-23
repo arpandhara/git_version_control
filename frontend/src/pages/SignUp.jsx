@@ -24,7 +24,7 @@ export default function SignUp() {
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-Up successful');
-        
+
         const user = res.data.data.user;
         if (!user.username) {
           navigate('/onboarding', { replace: true });

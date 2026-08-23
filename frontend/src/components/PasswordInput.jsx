@@ -37,7 +37,7 @@ export default function PasswordInput({ value, onChange, placeholder = "Enter yo
     if (aMet === bMet) {
       return criteria.indexOf(a) - criteria.indexOf(b);
     }
-    return aMet ? -1 : 1; 
+    return aMet ? -1 : 1;
   });
 
   return (
@@ -58,9 +58,9 @@ export default function PasswordInput({ value, onChange, placeholder = "Enter yo
           onClick={toggleShow}
           className="absolute right-3 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black transition-colors cursor-pointer outline-none"
         >
-          <Lottie 
+          <Lottie
             lottieRef={lottieRef}
-            src={visibilityAnimation} 
+            src={visibilityAnimation}
             autoplay={false}
             loop={false}
             style={{ width: 24, height: 24 }}
@@ -93,16 +93,16 @@ export default function PasswordInput({ value, onChange, placeholder = "Enter yo
                     className="flex items-center text-xs font-medium"
                   >
                     <motion.div
-                      animate={{ 
+                      animate={{
                         backgroundColor: met ? '#10b981' : '#f3f4f6',
                         borderColor: met ? '#10b981' : '#e5e7eb',
                       }}
                       className="w-4 h-4 rounded-full border flex items-center justify-center mr-2.5 shrink-0"
                     >
-                      <motion.svg 
+                      <motion.svg
                         initial={{ scale: 0 }}
                         animate={{ scale: met ? 1 : 0 }}
-                        className="w-2.5 h-2.5 text-white" 
+                        className="w-2.5 h-2.5 text-white"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                       >
                         <polyline points="20 6 9 17 4 12" />

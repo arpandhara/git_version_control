@@ -54,3 +54,5 @@
 - [x] **Conflict Resolution**: Implemented mathematical fallback logic during onboarding to generate 3 random username suggestions (e.g., `username1234`) when a duplicate key `409 Conflict` occurs.
 - [x] **Routing Integration**: Mounted the new user RESTful resource securely behind JWT `protect` middleware at `/api/v1/users` in `app.js`.
 - [x] **Security / Rate Limiting**: Added `checkUsernameLimiter` using `express-rate-limit` (max 20 requests per minute per IP) to the `GET /check-username` endpoint to prevent automated enumeration and DDoS attacks against the database index.
+- [x] **Current User Endpoint**: Built a `GET /api/v1/users/me` endpoint to expose the authenticated user's profile data to the frontend for robust session validation.
+- [x] **Social Login Guard**: Enhanced the `forgotPassword` controller to intercept reset requests for accounts registered exclusively via Google (`googleId` exists but no `passwordHash`) and reject them with a descriptive 400 API error, avoiding dead-end OTP loops.

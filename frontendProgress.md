@@ -53,3 +53,10 @@
 
 ## 8. Backend Synchronization
 - Upgraded the backend `cors` configuration to dynamically accept and reflect the incoming origin (`origin: true`) to satisfy the browser's strict `withCredentials` CORS policies without triggering wildcard (`*`) errors.
+
+## 9. Protected Routes & Session UX
+- **Global Auth Guard**: Engineered a robust route guard within `AuthLayout.jsx` that automatically pings the backend (`/users/me`) and seamlessly redirects logged-in users away from public auth pages (login/signup) directly to their `/dashboard`.
+- **History Stack Optimization**: Eliminated "browser back-button trapping" (redirect loops) by applying React Router's `{ replace: true }` property to all critical state transitions (logins, logouts, and onboarding completions).
+- **Dashboard Scaffold**: Created a sleek `Dashboard.jsx` interface that securely fetches and displays the authenticated user's profile and includes a functional, styled logout mechanism.
+- **Onboarding Security Integration**: Migrated the Onboarding flow API calls (e.g., checking usernames and submitting profiles) to utilize the centralized `apiClient`. This eliminated silent 401 failures by integrating these endpoints into the automated token-refresh cycle.
+- **Interceptor Infinite-Loop Fix**: Fixed a highly-specific, silent infinite reloading bug inside the `axios` interceptor that occurred when a token refresh failed while a user was already sitting on a public auth route.

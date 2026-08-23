@@ -7,10 +7,11 @@ import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
 import OnboardingFlow from './pages/Onboarding/OnboardingFlow';
 import Dashboard from './pages/Dashboard';
+import MainLayout from './components/MainLayout';
 
 function AnimatedRoutes() {
   const location = useLocation();
-  
+
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
@@ -28,7 +29,11 @@ function App() {
     <Router>
       <Routes>
         <Route path="/onboarding" element={<OnboardingFlow />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={
+          <MainLayout>
+            <Dashboard />
+          </MainLayout>
+        } />
         <Route path="*" element={
           <AuthLayout>
             <AnimatedRoutes />

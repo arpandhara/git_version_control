@@ -7,6 +7,7 @@ import VerifyOTP from './pages/VerifyOTP';
 import ForgotPassword from './pages/ForgotPassword';
 import OnboardingFlow from './pages/Onboarding/OnboardingFlow';
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 import MainLayout from './components/MainLayout';
 
 function AnimatedRoutes() {
@@ -32,6 +33,11 @@ function App() {
         <Route path="/dashboard" element={
           <MainLayout>
             <Dashboard />
+          </MainLayout>
+        } />
+        <Route path="/profile" element={
+          <MainLayout>
+            <Profile />
           </MainLayout>
         } />
         <Route path="*" element={

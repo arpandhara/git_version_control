@@ -60,3 +60,10 @@
 - **Dashboard Scaffold**: Created a sleek `Dashboard.jsx` interface that securely fetches and displays the authenticated user's profile and includes a functional, styled logout mechanism.
 - **Onboarding Security Integration**: Migrated the Onboarding flow API calls (e.g., checking usernames and submitting profiles) to utilize the centralized `apiClient`. This eliminated silent 401 failures by integrating these endpoints into the automated token-refresh cycle.
 - **Interceptor Infinite-Loop Fix**: Fixed a highly-specific, silent infinite reloading bug inside the `axios` interceptor that occurred when a token refresh failed while a user was already sitting on a public auth route.
+
+## 10. Profile & PAT UI Management
+- **Floating Navigation & URL Sync**: Built a sleek, animated floating side-nav on the profile page. Tightly bound the active view (`Overview`, `Repositories`, `Stars`, `Tokens`) to the URL's `?tab=` parameter, enabling direct deep-linking from the Navbar's dropdown.
+- **PAT Generation Flow**: Constructed a sophisticated, multi-step state machine (`ProfileTokens.jsx`) for generating Personal Access Tokens without full-page reloads.
+- **Optimistic UI Updates**: Implemented optimistic view transitions (e.g., instantly moving the user to the OTP screen upon clicking Generate) with graceful rollbacks if the background API request fails.
+- **Custom Native Confirmation**: Upgraded `jsonToast` to handle interactive dialogs (Confirm / Cancel), completely eliminating ugly, thread-blocking `window.confirm` browser alerts during sensitive actions like Token Revocation.
+- **Axios Concurrency Lock**: Engineered a `refreshPromise` singleton lock inside the Axios Interceptor. This prevents "Token Refresh Storms" (where 10 components fetch data simultaneously, hit a 401, and send 10 identical refresh requests to the backend).

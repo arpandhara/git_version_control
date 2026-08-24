@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { User, FolderGit2, Star, Settings, LogOut } from 'lucide-react';
+import { User, FolderGit2, Star, Settings, LogOut, Key } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../store/useAuthStore';
 import apiClient from '../../lib/axios';
@@ -54,9 +54,10 @@ export default function ProfileDropdown() {
   // Dropdown menu items
   const menuItems = [
     { icon: User, label: 'Profile', action: () => navigate('/profile') },
-    { icon: FolderGit2, label: 'Repositories', action: () => {} },
-    { icon: Star, label: 'Stars', action: () => {} },
-    { icon: Settings, label: 'Settings', action: () => {} },
+    { icon: FolderGit2, label: 'Repositories', action: () => navigate('/profile?tab=repositories') },
+    { icon: Star, label: 'Stars', action: () => navigate('/profile?tab=stars') },
+    { icon: Key, label: 'My Tokens', action: () => navigate('/profile?tab=tokens') },
+    { icon: Settings, label: 'Settings', action: () => navigate('/settings') },
   ];
 
   return (

@@ -14,9 +14,73 @@ const requestOtp = asyncHandler(async (req, res) => {
     });
 });
 
+const checkTokenName = asyncHandler(async (req, res) => {
+    const { name } = req.query;
+    if (!name) {
+        return res.status(200).json({ success: true, data: { available: true } });
+    }
+
+    const existingToken = await Token.findOne({
+        userId: req.user._id,
+        type: 'PERSONAL_ACCESS_TOKEN',
+        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        isRevoked: false
+    });
+
+    if (!existingToken) {
+        return res.status(200).json({
+            success: true,
+            data: { available: true }
+        });
+    }
+
+    // Generate suggestions
+    const baseName = name;
+    // Find tokens like "Name 1", "Name 2"
+    const similarTokens = await Token.find({
+        userId: req.user._id,
+        type: 'PERSONAL_ACCESS_TOKEN',
+        name: { $regex: new RegExp(`^${baseName} \\d+$`, 'i') },
+        isRevoked: false
+    });
+
+    const existingSuffixes = similarTokens.map(t => {
+        const match = t.name.match(/\d+$/);
+        return match ? parseInt(match[0], 10) : 0;
+    });
+
+    let nextSuffix = 1;
+    const suggestions = [];
+    while (suggestions.length < 3) {
+        if (!existingSuffixes.includes(nextSuffix)) {
+            suggestions.push(`${baseName} ${nextSuffix}`);
+        }
+        nextSuffix++;
+    }
+
+    res.status(200).json({
+        success: true,
+        data: {
+            available: false,
+            suggestions
+        }
+    });
+});
+
 const generatePAT = asyncHandler(async (req, res) => {
     const { name, otp } = req.body;
     
+    // Check for duplicate name
+    const existing = await Token.findOne({
+        userId: req.user._id,
+        type: 'PERSONAL_ACCESS_TOKEN',
+        name: { $regex: new RegExp(`^${name}$`, 'i') },
+        isRevoked: false
+    });
+    if (existing) {
+        throw new ApiError(400, 'A token with this name already exists');
+    }
+
     // Step-Up Authentication Challenge
     if (!otp) throw new ApiError(400, 'Security code (OTP) is required to generate a PAT');
     await verifyOtp(req.user._id, otp, 'PAT_ACTION');
@@ -71,6 +135,7 @@ const revokePAT = asyncHandler(async (req, res) => {
 
 module.exports = {
     requestOtp,
+    checkTokenName,
     generatePAT,
     listPATs,
     revokePAT

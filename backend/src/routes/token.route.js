@@ -1,12 +1,14 @@
 const express = require('express');
 const validate = require('../middlewares/validate.middleware');
 const { generatePatSchema } = require('../validations/auth.validation');
-const { requestOtp, generatePAT, listPATs, revokePAT } = require('../controllers/token.controller');
+const { requestOtp, generatePAT, listPATs, revokePAT, checkTokenName } = require('../controllers/token.controller');
 const { protect } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
 router.use(protect); 
+
+router.get('/check-name', checkTokenName);
 
 /**
  * @swagger

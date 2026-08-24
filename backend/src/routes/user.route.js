@@ -144,4 +144,32 @@ router.patch('/onboarding', protect, validate(onboardingSchema), updateOnboardin
  */
 router.patch('/profile', protect, validate(updateProfileSchema), updateProfile);
 
+const { uploadProfilePicture } = require('../config/cloudinary.config');
+const { uploadProfilePhoto } = require('../controllers/user.controller');
+
+/**
+ * @swagger
+ * /api/v1/users/profile-picture:
+ *   put:
+ *     summary: Upload and update user profile picture
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Profile picture updated successfully
+ */
+router.put('/profile-picture', protect, uploadProfilePicture.single('profilePicture'), uploadProfilePhoto);
+
 module.exports = router;

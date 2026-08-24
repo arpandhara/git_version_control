@@ -137,9 +137,35 @@ const updateProfile = asyncHandler(async (req, res) => {
     }
 });
 
+const uploadProfilePhoto = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        throw new ApiError(400, 'No file provided');
+    }
+
+    const userId = req.user._id;
+    const profilePictureUrl = req.file.path; // Multer-storage-cloudinary places the URL in req.file.path
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: { profilePicture: profilePictureUrl } },
+        { new: true, runValidators: true }
+    ).select('-passwordHash -securitySalt');
+
+    if (!updatedUser) {
+        throw new ApiError(404, 'User not found');
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Profile picture updated successfully',
+        data: { user: updatedUser }
+    });
+});
+
 module.exports = {
     getMe,
     checkUsername,
     updateOnboarding,
-    updateProfile
+    updateProfile,
+    uploadProfilePhoto
 };

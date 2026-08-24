@@ -56,3 +56,8 @@
 - [x] **Security / Rate Limiting**: Added `checkUsernameLimiter` using `express-rate-limit` (max 20 requests per minute per IP) to the `GET /check-username` endpoint to prevent automated enumeration and DDoS attacks against the database index.
 - [x] **Current User Endpoint**: Built a `GET /api/v1/users/me` endpoint to expose the authenticated user's profile data to the frontend for robust session validation.
 - [x] **Social Login Guard**: Enhanced the `forgotPassword` controller to intercept reset requests for accounts registered exclusively via Google (`googleId` exists but no `passwordHash`) and reject them with a descriptive 400 API error, avoiding dead-end OTP loops.
+
+## Personal Access Tokens (PAT) Management
+- [x] **Duplicate Detection**: Implemented logic in `checkTokenName` to prevent users from creating multiple PATs with the identical names, keeping the token list organized.
+- [x] **Smart Name Suggestions**: Added a smart naming engine that queries MongoDB for similarly named tokens and automatically suggests available alternatives (e.g., `Name 1`, `Name 2`) when a collision occurs.
+- [x] **Revocation Security**: Hardened the token revocation endpoint (`DELETE /tokens/:tokenId`) with mandatory Step-Up Authentication, requiring the user to verify a fresh OTP before a token is destroyed.

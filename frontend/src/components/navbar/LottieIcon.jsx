@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Lottie } from 'lottie-react';
 import IconBox from './IconBox';
 
@@ -10,9 +10,21 @@ import IconBox from './IconBox';
  *   isToggle  – if true, clicking toggles forward/reverse (default: true)
  *   trigger   – 'click' | 'hover' — what triggers the animation (default: 'click')
  */
-const LottieIcon = ({ src, isToggle = true, trigger = 'click' }) => {
+const LottieIcon = ({ src, isToggle = true, trigger = 'click', onClick, active }) => {
   const lottieRef = useRef();
   const openRef = useRef(false);
+
+  useEffect(() => {
+    if (active !== undefined && active !== openRef.current) {
+      if (active) {
+        playForward();
+        openRef.current = true;
+      } else {
+        playReverse();
+        openRef.current = false;
+      }
+    }
+  }, [active]);
 
   const playForward = () => {
     const anim = lottieRef.current;
@@ -40,12 +52,15 @@ const LottieIcon = ({ src, isToggle = true, trigger = 'click' }) => {
       if (!openRef.current) {
         playForward();
         openRef.current = true;
+        if (onClick) onClick(true);
       } else {
         playReverse();
         openRef.current = false;
+        if (onClick) onClick(false);
       }
     } else {
       playForward();
+      if (onClick) onClick();
     }
   };
 

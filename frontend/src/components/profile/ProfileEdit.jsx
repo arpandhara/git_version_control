@@ -7,7 +7,7 @@ import useAuthStore from '../../store/useAuthStore';
 import apiClient from '../../lib/axios';
 import { jsonToast } from '../../lib/jsonToast';
 
-export default function ProfileEdit({ user, onCancel }) {
+export default function ProfileEdit({ user, onCancel, isUploading }) {
   const { setUser } = useAuthStore();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -120,7 +120,7 @@ export default function ProfileEdit({ user, onCancel }) {
             </span>
             <ChevronDown size={14} className={`text-gray-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
           </button>
-          
+
           <AnimatePresence>
             {dropdownOpen && (
               <motion.div
@@ -256,7 +256,7 @@ export default function ProfileEdit({ user, onCancel }) {
       <div className="flex items-center gap-2 pt-1">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || isUploading}
           className="flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
         >
           {saving ? (
@@ -264,7 +264,7 @@ export default function ProfileEdit({ user, onCancel }) {
           ) : (
             <Save size={14} strokeWidth={1.8} />
           )}
-          {saving ? 'Saving...' : 'Save'}
+          {saving ? 'Saving...' : (isUploading ? 'Uploading...' : 'Save')}
         </button>
         <button
           onClick={onCancel}

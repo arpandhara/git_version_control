@@ -3,6 +3,7 @@ const validate = require('../middlewares/validate.middleware');
 const { generatePatSchema } = require('../validations/auth.validation');
 const { requestOtp, generatePAT, listPATs, revokePAT, checkTokenName } = require('../controllers/token.controller');
 const { protect } = require('../middlewares/auth.middleware');
+const { otpLimiter } = require('../middlewares/rateLimit.middleware');
 
 const router = express.Router();
 
@@ -22,7 +23,7 @@ router.get('/check-name', checkTokenName);
  *       200:
  *         description: Security code sent to your email
  */
-router.post('/request-otp', requestOtp);
+router.post('/request-otp', otpLimiter, requestOtp);
 
 /**
  * @swagger

@@ -49,6 +49,12 @@ const protect = asyncHandler(async (req, res, next) => {
         }
 
         // 4. Handle standard JWT Flow (Web Sessions)
+        const BlacklistedToken = require('../models/BlacklistedToken.model');
+        const isBlacklisted = await BlacklistedToken.exists({ token });
+        if (isBlacklisted) {
+            throw new ApiError(401, 'Token has been revoked');
+        }
+
         // Decode the token without verifying signature first to extract the userId
         const decoded = jwt.decode(token);
         

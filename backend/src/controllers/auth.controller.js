@@ -1,3 +1,4 @@
+const jwt = require('jsonwebtoken');
 const asyncHandler = require('../utils/asyncHandler');
 const { registerLocalUser, loginLocalUser, handleGoogleOAuth } = require('../services/auth.service');
 const { generateAuthTokens } = require('../services/token.service');
@@ -220,10 +221,26 @@ const cliLogin = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
-    const { refreshToken: existingToken } = req.cookies;
+    const { refreshToken: existingToken, accessToken } = req.cookies;
     if (existingToken) {
         const tokenHash = crypto.createHash('sha256').update(existingToken).digest('hex');
         await Token.deleteOne({ tokenHash, type: 'REFRESH_TOKEN' });
+    }
+
+    if (accessToken) {
+        try {
+            const decoded = jwt.decode(accessToken);
+            if (decoded && decoded.exp) {
+                const expiresAt = new Date(decoded.exp * 1000);
+                // Create a blacklist entry. It will automatically be deleted by MongoDB TTL when expiresAt passes.
+                await require('../models/BlacklistedToken.model').create({
+                    token: accessToken,
+                    expiresAt
+                }).catch(() => {}); // Ignore duplicate key errors if already blacklisted
+            }
+        } catch (e) {
+            // Ignore decode errors during logout
+        }
     }
 
     res.clearCookie('accessToken', {

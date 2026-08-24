@@ -20,6 +20,7 @@ const {
     forgotPasswordSchema,
     resetPasswordSchema
 } = require('../validations/auth.validation');
+const { otpLimiter } = require('../middlewares/rateLimit.middleware');
 
 const router = express.Router();
 
@@ -96,7 +97,7 @@ router.post('/verify-email', validate(verifyOtpSchema), verifyEmail);
  *       200:
  *         description: OTP resent
  */
-router.post('/resend-verification', validate(forgotPasswordSchema), resendVerification);
+router.post('/resend-verification', otpLimiter, validate(forgotPasswordSchema), resendVerification);
 
 /**
  * @swagger
@@ -145,7 +146,7 @@ router.post('/login', validate(loginSchema), login);
  *       200:
  *         description: OTP sent
  */
-router.post('/forgot-password', validate(forgotPasswordSchema), forgotPassword);
+router.post('/forgot-password', otpLimiter, validate(forgotPasswordSchema), forgotPassword);
 
 /**
  * @swagger

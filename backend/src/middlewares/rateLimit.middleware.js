@@ -12,6 +12,21 @@ const checkUsernameLimiter = rateLimit({
     }
 });
 
+const otpLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minute window
+    max: 3, // Limit each IP/User to 3 requests per 15 minutes
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        // Tie limit to authenticated user ID if available, otherwise fallback to IP
+        return req.user ? req.user._id.toString() : req.ip;
+    },
+    handler: (req, res, next) => {
+        next(new ApiError(429, 'Too many security codes requested. Please try again after 15 minutes.'));
+    }
+});
+
 module.exports = {
-    checkUsernameLimiter
+    checkUsernameLimiter,
+    otpLimiter
 };

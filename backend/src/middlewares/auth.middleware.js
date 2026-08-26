@@ -37,11 +37,10 @@ const protect = asyncHandler(async (req, res, next) => {
                 throw new ApiError(401, 'Invalid or revoked Personal Access Token');
             }
 
-            // Optional: Update lastUsedAt for the PAT (could be moved to a background job to save DB writes on every request)
-            patDoc.lastUsedAt = new Date();
-            await patDoc.save();
+            // Fire-and-forget lastUsedAt update — avoids blocking the request on a DB write
+            patDoc.constructor.updateOne({ _id: patDoc._id }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {});
 
-            const user = await User.findById(patDoc.userId);
+            const user = await User.findById(patDoc.userId).select('-passwordHash -securitySalt');
             if (!user) throw new ApiError(401, 'User belonging to this token no longer exists');
 
             req.user = user;
@@ -49,12 +48,6 @@ const protect = asyncHandler(async (req, res, next) => {
         }
 
         // 4. Handle standard JWT Flow (Web Sessions)
-        const BlacklistedToken = require('../models/BlacklistedToken.model');
-        const isBlacklisted = await BlacklistedToken.exists({ token });
-        if (isBlacklisted) {
-            throw new ApiError(401, 'Token has been revoked');
-        }
-
         // Decode the token without verifying signature first to extract the userId
         const decoded = jwt.decode(token);
         

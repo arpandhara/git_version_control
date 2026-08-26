@@ -56,7 +56,7 @@ const updateOnboarding = asyncHandler(async (req, res, next) => {
                     bio
                 }
             },
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         ).select('-passwordHash -securitySalt');
 
         if (!updatedUser) {
@@ -117,7 +117,7 @@ const updateProfile = asyncHandler(async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { $set: updateData },
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         ).select('-passwordHash -securitySalt');
 
         if (!updatedUser) {
@@ -148,7 +148,7 @@ const uploadProfilePhoto = asyncHandler(async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
         userId,
         { $set: { profilePicture: profilePictureUrl } },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
     ).select('-passwordHash -securitySalt');
 
     if (!updatedUser) {
@@ -162,10 +162,36 @@ const uploadProfilePhoto = asyncHandler(async (req, res) => {
     });
 });
 
+const updateDashboardCard = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { avatarKey, cardColor } = req.body;
+
+    const updateData = {};
+    if (avatarKey !== undefined) updateData['dashboardCard.avatarKey'] = avatarKey;
+    if (cardColor !== undefined) updateData['dashboardCard.cardColor'] = cardColor;
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: updateData },
+        { returnDocument: 'after' }
+    ).select('-passwordHash -securitySalt');
+
+    if (!updatedUser) {
+        throw new ApiError(404, 'User not found');
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Dashboard card updated successfully',
+        data: { user: updatedUser },
+    });
+});
+
 module.exports = {
     getMe,
     checkUsername,
     updateOnboarding,
     updateProfile,
-    uploadProfilePhoto
+    uploadProfilePhoto,
+    updateDashboardCard,
 };

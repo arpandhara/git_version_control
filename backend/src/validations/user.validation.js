@@ -52,8 +52,23 @@ const updateProfileSchema = z.object({
     }),
 });
 
+// Schema for PATCH /api/v1/users/dashboard-card
+const updateDashboardCardSchema = z.object({
+    body: z.object({
+        avatarKey: z.enum([
+            'boyAvatar1', 'boyAvatar2', 'boyAvatar3',
+            'girlAvatar1', 'girlAvatar2', 'girlAvatar3',
+        ]).optional(),
+        cardColor: z
+            .string()
+            .regex(/^#[0-9a-fA-F]{6}$/, 'cardColor must be a valid 6-digit hex color')
+            .optional(),
+    }),
+});
+
 module.exports = {
     checkUsernameSchema,
     onboardingSchema,
     updateProfileSchema,
+    updateDashboardCardSchema,
 };

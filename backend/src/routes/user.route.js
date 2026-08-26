@@ -3,16 +3,19 @@ const { protect } = require('../middlewares/auth.middleware');
 const { checkUsernameLimiter } = require('../middlewares/rateLimit.middleware');
 const validate = require('../middlewares/validate.middleware');
 const { 
-    checkUsernameSchema, 
-    onboardingSchema, 
-    updateProfileSchema 
-} = require('../validations/user.validation');
-const { 
     getMe,
     checkUsername, 
     updateOnboarding, 
-    updateProfile 
+    updateProfile,
+    updateDashboardCard,
 } = require('../controllers/user.controller');
+
+const {
+    checkUsernameSchema,
+    onboardingSchema,
+    updateProfileSchema,
+    updateDashboardCardSchema,
+} = require('../validations/user.validation');
 
 const router = express.Router();
 
@@ -171,5 +174,33 @@ const { uploadProfilePhoto } = require('../controllers/user.controller');
  *         description: Profile picture updated successfully
  */
 router.put('/profile-picture', protect, uploadProfilePicture.single('profilePicture'), uploadProfilePhoto);
+
+/**
+ * @swagger
+ * /api/v1/users/dashboard-card:
+ *   patch:
+ *     summary: Update dashboard card avatar and color preferences
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               avatarKey:
+ *                 type: string
+ *                 enum: [boyAvatar1, boyAvatar2, boyAvatar3, girlAvatar1, girlAvatar2, girlAvatar3]
+ *               cardColor:
+ *                 type: string
+ *                 example: '#6d28d9'
+ *     responses:
+ *       200:
+ *         description: Dashboard card updated successfully
+ */
+router.patch('/dashboard-card', protect, validate(updateDashboardCardSchema), updateDashboardCard);
 
 module.exports = router;

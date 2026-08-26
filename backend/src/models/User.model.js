@@ -84,6 +84,17 @@ const userSchema = new mongoose.Schema(
                 ref: 'User',
             },
         ],
+        dashboardCard: {
+            avatarKey: {
+                type: String,
+                enum: ['boyAvatar1', 'boyAvatar2', 'boyAvatar3', 'girlAvatar1', 'girlAvatar2', 'girlAvatar3'],
+                default: 'boyAvatar1',
+            },
+            cardColor: {
+                type: String,
+                default: '#6d28d9', // violet-700
+            },
+        },
     },
     { timestamps: true }
 );

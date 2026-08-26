@@ -1,27 +1,47 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import useAuthStore from '../store/useAuthStore';
+import { useNavigate } from 'react-router-dom';
+import TopRepos from '../components/dashboard/TopRepos';
+import AskBox from '../components/dashboard/AskBox';
+import ActionPills from '../components/dashboard/ActionPills';
+import FeedSection from '../components/dashboard/FeedSection';
+import ProfileGlance from '../components/dashboard/ProfileGlance';
 
 export default function Dashboard() {
-  const { user, isInitializing } = useAuthStore();
+  const [activePill, setActivePill] = useState(null);
+  const navigate = useNavigate();
+
+  const handlePillClick = (id) => {
+    if (id === 'pat') {
+      navigate('/profile?tab=tokens&action=new');
+    } else {
+      setActivePill(id);
+    }
+  };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="flex flex-col items-center justify-center p-6 font-sans"
+      className="flex w-full px-3 py-6 gap-6 font-sans min-h-screen"
     >
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-md text-center mt-10">
-        <h1 className="text-4xl font-serif mb-2 tracking-tight text-gray-900">Dashboard</h1>
-        {isInitializing ? (
-          <p className="text-gray-500 mb-8 font-medium">Loading...</p>
-        ) : user ? (
-          <p className="text-gray-500 mb-8 font-medium">
-            Welcome back, <span className="font-bold text-black">{user.name || user.username}</span>!
-          </p>
-        ) : null}
+      {/* ══ LEFT — Top Repos ══ */}
+      <TopRepos />
+
+      {/* ══ CENTER — Ask Box + Pills + Feed ══ */}
+      <div className="flex-1 min-w-0 flex flex-col gap-4">
+        <AskBox />
+        <ActionPills onPillClick={handlePillClick} />
+
+        {/* Thin divider between pills and feed */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+        <FeedSection activePill={activePill} />
       </div>
+
+      {/* ══ RIGHT — Profile at a Glance ══ */}
+      <ProfileGlance />
     </motion.div>
   );
 }

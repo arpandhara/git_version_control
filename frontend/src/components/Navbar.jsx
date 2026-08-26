@@ -22,15 +22,15 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 h-14 bg-transparent z-50 flex items-center justify-between px-4 font-sans text-black backdrop-blur-sm bg-white/50">
+      <nav className="fixed top-3 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] h-12 z-50 flex items-center justify-between px-4 font-sans text-black rounded-2xl border border-white/30 bg-white/40 backdrop-blur-md shadow-sm shadow-black/5">
         {/* ── Left Section ── */}
         <div className="flex items-center gap-3">
           <div data-hamburger>
-            <LottieIcon 
-              src={menuAnim} 
-              isToggle={true} 
+            <LottieIcon
+              src={menuAnim}
+              isToggle={true}
               active={isSidebarOpen}
-              onClick={(isOpen) => setIsSidebarOpen(isOpen)} 
+              onClick={(isOpen) => setIsSidebarOpen(isOpen)}
             />
           </div>
           {user && (

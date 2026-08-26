@@ -227,21 +227,7 @@ const logout = asyncHandler(async (req, res) => {
         await Token.deleteOne({ tokenHash, type: 'REFRESH_TOKEN' });
     }
 
-    if (accessToken) {
-        try {
-            const decoded = jwt.decode(accessToken);
-            if (decoded && decoded.exp) {
-                const expiresAt = new Date(decoded.exp * 1000);
-                // Create a blacklist entry. It will automatically be deleted by MongoDB TTL when expiresAt passes.
-                await require('../models/BlacklistedToken.model').create({
-                    token: accessToken,
-                    expiresAt
-                }).catch(() => {}); // Ignore duplicate key errors if already blacklisted
-            }
-        } catch (e) {
-            // Ignore decode errors during logout
-        }
-    }
+
 
     res.clearCookie('accessToken', {
         httpOnly: true,

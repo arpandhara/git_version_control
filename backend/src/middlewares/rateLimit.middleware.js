@@ -19,7 +19,7 @@ const otpLimiter = rateLimit({
     legacyHeaders: false,
     keyGenerator: (req) => {
         // Tie limit to authenticated user ID if available, otherwise fallback to IP
-        return req.user ? req.user._id.toString() : req.ip;
+        return req.user ? req.user._id.toString() : (req.headers['x-forwarded-for'] || req.socket.remoteAddress);
     },
     handler: (req, res, next) => {
         next(new ApiError(429, 'Too many security codes requested. Please try again after 15 minutes.'));

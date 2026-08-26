@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
 import Navbar from './Navbar';
+import { Lottie } from 'lottie-react';
+import loadingAnimation from '../assets/Loading V2/loadingV2.json';
 
 export default function MainLayout({ children }) {
   const navigate = useNavigate();
@@ -27,7 +29,12 @@ export default function MainLayout({ children }) {
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        {/* Prevent flash */}
+        <Lottie 
+          animationData={loadingAnimation} 
+          loop={true} 
+          autoplay={true} 
+          className="w-20 h-20 opacity-80" 
+        />
       </div>
     );
   }
@@ -38,7 +45,7 @@ export default function MainLayout({ children }) {
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
       <Navbar />
       {/* Add top padding so content is not hidden behind the fixed navbar */}
-      <main className="flex-grow pt-14 relative z-0">
+      <main className="flex-grow pt-20 relative z-0">
         {children}
       </main>
     </div>

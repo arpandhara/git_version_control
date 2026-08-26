@@ -156,6 +156,8 @@ const WaveParticles = () => {
   
   const targetPointer = useRef(new THREE.Vector2(-1000, -1000));
   const currentPointer = useRef(new THREE.Vector2(-1000, -1000));
+  // Stable scratch Vector3 so we don't allocate every frame
+  const scratchVec = useRef(new THREE.Vector3());
 
   const uniforms = useMemo(
     () => ({
@@ -172,10 +174,10 @@ const WaveParticles = () => {
     if (materialRef.current) {
       materialRef.current.uniforms.uTime.value = clock.elapsedTime;
       
-      const vec = new THREE.Vector3(pointer.x, pointer.y, 0);
-      vec.unproject(camera);
+      // Reuse the same Vector3 instead of allocating a new one every frame
+      scratchVec.current.set(pointer.x, pointer.y, 0).unproject(camera);
       
-      targetPointer.current.set(vec.x, vec.y);
+      targetPointer.current.set(scratchVec.current.x, scratchVec.current.y);
       currentPointer.current.lerp(targetPointer.current, 0.1);
       
       materialRef.current.uniforms.uPointer.value.copy(currentPointer.current);

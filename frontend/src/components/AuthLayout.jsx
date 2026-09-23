@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import WaveScene from './WaveScene';
 import ForgotPasswordVisual from './ForgotPasswordVisual';
@@ -38,7 +38,7 @@ export default function AuthLayout({ children }) {
     <div className="flex min-h-screen bg-white">
       {/* Left Column - Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-4">
-        {children}
+        {children || <Outlet />}
       </div>
 
       {/* Right Column - Visual (Hidden on small screens) */}

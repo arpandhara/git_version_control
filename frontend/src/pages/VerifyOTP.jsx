@@ -71,6 +71,7 @@ export default function VerifyOTP({ onBack, onVerify }) {
           otp: otpValue,
         });
         jsonToast.success('Email verified successfully');
+        localStorage.setItem('isAuthenticated', 'true');
         setIsLoading(false);
 
         const user = res.data.data.user;

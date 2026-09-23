@@ -16,7 +16,7 @@ const Dashboard      = lazy(() => import('./pages/Dashboard'));
 const Profile        = lazy(() => import('./pages/Profile'));
 
 const PageFallback = () => (
-  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+  <div className="flex items-center justify-center w-full h-full py-20">
     <Lottie 
       animationData={loadingAnimation} 
       loop={true} 
@@ -30,40 +30,46 @@ function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/verify" element={<VerifyOTP />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-      </Routes>
-    </AnimatePresence>
+    <Suspense fallback={<PageFallback />}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/verify" element={<VerifyOTP />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 }
 
 function App() {
   return (
     <Router>
-      <Suspense fallback={<PageFallback />}>
-        <Routes>
-          <Route path="/onboarding" element={<OnboardingFlow />} />
-          <Route path="/dashboard" element={
+      <Routes>
+        <Route path="/onboarding" element={
+          <Suspense fallback={<PageFallback />}>
+            <OnboardingFlow />
+          </Suspense>
+        } />
+        <Route path="/dashboard" element={
+          <Suspense fallback={<PageFallback />}>
             <MainLayout>
               <Dashboard />
             </MainLayout>
-          } />
-          <Route path="/profile" element={
+          </Suspense>
+        } />
+        <Route path="/profile" element={
+          <Suspense fallback={<PageFallback />}>
             <MainLayout>
               <Profile />
             </MainLayout>
-          } />
-          <Route path="*" element={
-            <AuthLayout>
-              <AnimatedRoutes />
-            </AuthLayout>
-          } />
-        </Routes>
-      </Suspense>
+          </Suspense>
+        } />
+        <Route element={<AuthLayout />}>
+          <Route path="/*" element={<AnimatedRoutes />} />
+        </Route>
+      </Routes>
     </Router>
   );
 }

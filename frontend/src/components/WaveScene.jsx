@@ -208,7 +208,18 @@ const WaveParticles = () => {
 export default function WaveScene() {
   return (
     <div className="w-full h-full relative overflow-hidden bg-white">
-      <Canvas>
+      <Canvas
+        gl={{ powerPreference: 'high-performance', antialias: false }}
+        onCreated={({ gl }) => {
+          const canvas = gl.domElement;
+          canvas.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault(); // allows context to be restored
+          });
+          canvas.addEventListener('webglcontextrestored', () => {
+            // R3F handles re-render automatically once context is restored
+          });
+        }}
+      >
         <OrthographicCamera makeDefault position={[0, 0, 20]} zoom={20} />
         <WaveParticles />
       </Canvas>

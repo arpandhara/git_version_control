@@ -24,6 +24,7 @@ export default function SignUp() {
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-Up successful');
+        localStorage.setItem('isAuthenticated', 'true');
 
         const user = res.data.data.user;
         if (!user.username) {

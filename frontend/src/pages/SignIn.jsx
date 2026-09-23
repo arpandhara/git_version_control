@@ -24,6 +24,7 @@ export default function SignIn() {
           redirectUri: 'postmessage',
         });
         jsonToast.success('Google Sign-In successful');
+        localStorage.setItem('isAuthenticated', 'true');
 
         const user = res.data.data.user;
         if (!user.username) {
@@ -46,6 +47,7 @@ export default function SignIn() {
     try {
       const res = await apiClient.post('/auth/login', { email, password });
       jsonToast.success('Login successful');
+      localStorage.setItem('isAuthenticated', 'true');
       setIsLoading(false);
 
       const user = res.data.data.user;

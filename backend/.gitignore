@@ -82,6 +82,7 @@ typings/
 
 # OS metadata
 .DS_Store
+.local
 Thumbs.db
 
 # IDE User Data

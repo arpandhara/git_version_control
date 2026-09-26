@@ -16,10 +16,10 @@ const getMe = asyncHandler(async (req, res) => {
 
 const checkUsername = asyncHandler(async (req, res) => {
     const { q } = req.query;
-    
+
     // Quick index lookup
     const user = await User.findOne({ username: q.toLowerCase() }).select('_id');
-    
+
     let suggestions = [];
     if (user) {
         const base = q.toLowerCase();
@@ -42,7 +42,7 @@ const checkUsername = asyncHandler(async (req, res) => {
 
 const updateOnboarding = asyncHandler(async (req, res, next) => {
     const { name, username, bio } = req.body;
-    
+
     // req.user should be populated by the protect middleware
     const userId = req.user._id;
 
@@ -78,17 +78,17 @@ const updateOnboarding = asyncHandler(async (req, res, next) => {
                 `${base}${Math.floor(1000 + Math.random() * 9000)}`,
                 `${base}${Math.floor(1000 + Math.random() * 9000)}`
             ];
-            
+
             return next(new ApiError(409, 'Username is already taken', [], { suggestions }));
         }
-        
+
         next(error);
     }
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
     const userId = req.user._id;
-    
+
     // Explicitly destructure allowed fields to prevent overwriting protected fields like _id, email, password
     const {
         name,

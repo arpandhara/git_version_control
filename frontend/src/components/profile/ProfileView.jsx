@@ -41,13 +41,15 @@ export default function ProfileView({ user, onEdit }) {
         <p className="text-[13.5px] text-gray-600 leading-relaxed mb-4">{user.bio}</p>
       )}
 
-      <button
-        onClick={onEdit}
-        className="w-full py-1.5 px-4 text-[13px] font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 mb-5 flex items-center justify-center gap-2 cursor-pointer"
-      >
-        <Pencil size={13} strokeWidth={1.8} />
-        Edit profile
-      </button>
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="w-full py-1.5 px-4 text-[13px] font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 mb-5 flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Pencil size={13} strokeWidth={1.8} />
+          Edit profile
+        </button>
+      )}
 
       <div className="flex items-center gap-3 mb-5 text-[13px] text-gray-600">
         <button className="flex items-center gap-1.5 hover:text-gray-900 transition-colors cursor-pointer group">

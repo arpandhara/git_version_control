@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
 import ProfileView from '../components/profile/ProfileView';
 import ProfileEdit from '../components/profile/ProfileEdit';
@@ -14,13 +14,41 @@ import { Lottie } from 'lottie-react';
 import loadingAnimation from '../assets/Loading V2/loadingV2.json';
 
 export default function Profile() {
-  const { user, setUser } = useAuthStore();
+  const { user: currentUser, setUser } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { username } = useParams(); // Get username from /u/:username
   const tabParam = searchParams.get('tab');
   
   const [editing, setEditing] = useState(false);
   const [activeTab, setActiveTab] = useState(tabParam || 'overview');
   const [uploading, setUploading] = useState(false);
+  
+  // Public profile state
+  const [profileUser, setProfileUser] = useState(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  
+  const isOwner = !username || (currentUser && username === currentUser.username);
+  const user = isOwner ? currentUser : profileUser;
+
+  // Fetch public profile if viewing someone else
+  useEffect(() => {
+    if (username && !isOwner) {
+      const fetchProfile = async () => {
+        setIsLoadingProfile(true);
+        try {
+          const res = await apiClient.get(`/users/u/${username}`);
+          setProfileUser(res.data.data.user);
+        } catch (error) {
+          jsonToast.error("User not found");
+        } finally {
+          setIsLoadingProfile(false);
+        }
+      };
+      fetchProfile();
+    } else {
+      setProfileUser(null);
+    }
+  }, [username, isOwner]);
 
   // Sync state with URL parameter if navigated from elsewhere
   useEffect(() => {
@@ -83,7 +111,7 @@ export default function Profile() {
       >
         {/* ── Avatar ── */}
         <div className="mb-4">
-          <div className={`relative w-[280px] h-[280px] rounded-full mx-auto transition-all ${editing ? 'group' : ''}`}>
+          <div className={`relative w-[280px] h-[280px] rounded-full mx-auto transition-all ${editing && isOwner ? 'group' : ''}`}>
             <div className={`w-full h-full rounded-full overflow-hidden shadow-md border-2 ${uploading ? 'border-gray-200 opacity-70' : 'border-transparent'}`}>
               <img
                 src={profilePic}
@@ -95,7 +123,7 @@ export default function Profile() {
               />
             </div>
 
-            {editing && (
+            {editing && isOwner && (
               <>
                 <div className={`absolute inset-0 bg-black/40 rounded-full flex items-center justify-center transition-opacity z-10 ${uploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                   {uploading ? (
@@ -134,7 +162,7 @@ export default function Profile() {
         {/* ── Animate between view / edit modes ── */}
         <AnimatePresence mode="wait">
           {!editing ? (
-            <ProfileView key="view" user={user} onEdit={() => setEditing(true)} />
+            <ProfileView key="view" user={user} onEdit={isOwner ? () => setEditing(true) : null} />
           ) : (
             <ProfileEdit key="edit" user={user} onCancel={() => setEditing(false)} isUploading={uploading} />
           )}
@@ -189,13 +217,13 @@ export default function Profile() {
           </motion.main>
         )}
 
-        {activeTab === 'tokens' && <ProfileTokens />}
+        {activeTab === 'tokens' && isOwner && <ProfileTokens />}
       </div>
 
       {/* ════════════════════════════════════════════
           FLOATING NAVIGATION
           ════════════════════════════════════════════ */}
-      <FloatingNav activeTab={activeTab} setActiveTab={handleTabChange} />
+      <FloatingNav activeTab={activeTab} setActiveTab={handleTabChange} isOwner={isOwner} />
     </div>
   );
 }

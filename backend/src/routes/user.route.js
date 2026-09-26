@@ -8,6 +8,8 @@ const {
     updateOnboarding, 
     updateProfile,
     updateDashboardCard,
+    searchUsers,
+    getPublicProfile,
 } = require('../controllers/user.controller');
 
 const {
@@ -59,6 +61,28 @@ router.get('/me', protect, getMe);
  *         description: Too many requests
  */
 router.get('/check-username', checkUsernameLimiter, validate(checkUsernameSchema), checkUsername);
+
+/**
+ * @swagger
+ * /api/v1/users/search:
+ *   get:
+ *     summary: Search users using Atlas Search (Lucene)
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search term (name, username)
+ *     responses:
+ *       200:
+ *         description: Search results
+ */
+router.get('/search', protect, searchUsers);
 
 /**
  * @swagger
@@ -202,5 +226,25 @@ router.put('/profile-picture', protect, uploadProfilePicture.single('profilePict
  *         description: Dashboard card updated successfully
  */
 router.patch('/dashboard-card', protect, validate(updateDashboardCardSchema), updateDashboardCard);
+
+/**
+ * @swagger
+ * /api/v1/users/u/{username}:
+ *   get:
+ *     summary: Get public profile of a user by username
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         schema:
+ *           type: string
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: User profile returned
+ *       404:
+ *         description: User not found
+ */
+router.get('/u/:username', protect, getPublicProfile);
 
 module.exports = router;

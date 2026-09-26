@@ -14,6 +14,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const OnboardingFlow = lazy(() => import('./pages/Onboarding/OnboardingFlow'));
 const Dashboard      = lazy(() => import('./pages/Dashboard'));
 const Profile        = lazy(() => import('./pages/Profile'));
+const IDE            = lazy(() => import('./pages/IDE'));
 
 const PageFallback = () => (
   <div className="flex items-center justify-center w-full h-full py-20">
@@ -64,6 +65,18 @@ function App() {
             <MainLayout>
               <Profile />
             </MainLayout>
+          </Suspense>
+        } />
+        <Route path="/u/:username" element={
+          <Suspense fallback={<PageFallback />}>
+            <MainLayout>
+              <Profile />
+            </MainLayout>
+          </Suspense>
+        } />
+        <Route path="/ide" element={
+          <Suspense fallback={<PageFallback />}>
+            <IDE />
           </Suspense>
         } />
         <Route element={<AuthLayout />}>

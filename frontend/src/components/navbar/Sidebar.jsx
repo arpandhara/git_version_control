@@ -55,7 +55,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <SidebarItem icon={CircleDot} label="All issues" isExpanded={isHovered} />
             <SidebarItem icon={GitPullRequest} label="All pull requests" isExpanded={isHovered} />
             <SidebarItem icon={Book} label="All repositories" isExpanded={isHovered} />
-            <SidebarItem icon={Terminal} label="Codespaces" isExpanded={isHovered} />
+            <SidebarItem icon={Terminal} label="Codespaces" isExpanded={isHovered} onClick={() => window.open('/ide', '_blank')} />
           </div>
 
           <div className="w-full h-px bg-gray-100 my-2"></div>

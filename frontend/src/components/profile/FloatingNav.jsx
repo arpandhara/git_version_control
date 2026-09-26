@@ -2,13 +2,16 @@ import React from 'react';
 import { BookOpen, Book, Star, Key } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function FloatingNav({ activeTab, setActiveTab }) {
+export default function FloatingNav({ activeTab, setActiveTab, isOwner = true }) {
   const tabs = [
     { id: 'overview', icon: BookOpen, label: 'Overview' },
     { id: 'repositories', icon: Book, label: 'Repositories' },
     { id: 'stars', icon: Star, label: 'Stars' },
-    { id: 'tokens', icon: Key, label: 'My Tokens' },
   ];
+
+  if (isOwner) {
+    tabs.push({ id: 'tokens', icon: Key, label: 'My Tokens' });
+  }
 
   return (
     <div className="fixed right-6 top-1/2 -translate-y-1/2 bg-white border border-gray-200 shadow-sm rounded-full py-3 px-2 flex flex-col gap-3 z-40">

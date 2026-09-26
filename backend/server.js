@@ -17,6 +17,19 @@ const startApplication = async () => {
             logger.info(`Server is running successfully at port ${PORT}`);
         });
 
+        const { initTerminalServer } = require('./src/services/terminal.service.js');
+        const wss = initTerminalServer(server);
+
+        server.on('upgrade', (request, socket, head) => {
+            if (request.url === '/ws/terminal') {
+                wss.handleUpgrade(request, socket, head, (ws) => {
+                    wss.emit('connection', ws, request);
+                });
+            } else {
+                socket.destroy();
+            }
+        });
+
         server.on('error', (error) => {
             if (error.syscall !== 'listen') {
                 throw error;
@@ -60,6 +73,23 @@ const gracefulShutdown = async (signal) => {
         if (mongoose.connection && mongoose.connection.readyState !== 0) {
             await mongoose.connection.close();
             logger.info('Database connection closed. ✅');
+        }
+
+        // Clean up orphaned Docker containers using Dockerode (Cross-platform)
+        try {
+            const Docker = require('dockerode');
+            const docker = new Docker(process.platform === 'win32' ? { socketPath: '//./pipe/docker_engine' } : { socketPath: '/var/run/docker.sock' });
+            const containers = await docker.listContainers({ all: true, filters: { ancestor: ['python:3.11-slim'] } });
+            
+            for (const cInfo of containers) {
+                try {
+                    const c = docker.getContainer(cInfo.Id);
+                    await c.remove({ force: true });
+                } catch (e) {}
+            }
+            logger.info('Docker sandbox containers cleaned up. ✅');
+        } catch (err) {
+            logger.error('Failed to clean up Docker containers: ' + err.message);
         }
 
         clearTimeout(shutdownTimeout);

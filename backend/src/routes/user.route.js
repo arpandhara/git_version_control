@@ -2,10 +2,10 @@ const express = require('express');
 const { protect } = require('../middlewares/auth.middleware');
 const { checkUsernameLimiter } = require('../middlewares/rateLimit.middleware');
 const validate = require('../middlewares/validate.middleware');
-const { 
+const {
     getMe,
-    checkUsername, 
-    updateOnboarding, 
+    checkUsername,
+    updateOnboarding,
     updateProfile,
     updateDashboardCard,
     searchUsers,

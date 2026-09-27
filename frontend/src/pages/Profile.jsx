@@ -5,9 +5,11 @@ import useAuthStore from '../store/useAuthStore';
 import ProfileView from '../components/profile/ProfileView';
 import ProfileEdit from '../components/profile/ProfileEdit';
 import ProfileReadme from '../components/profile/ProfileReadme';
+import ProfileOverview from '../components/profile/ProfileOverview';
 import ProfileTokens from '../components/profile/ProfileTokens';
+import ProfileRepos from '../components/profile/ProfileRepos';
 import FloatingNav from '../components/profile/FloatingNav';
-import { Book, Star, Loader2, Camera, Key, Plus } from 'lucide-react';
+import { BookOpen, Book, Star, Loader2, Camera, Key, Plus } from 'lucide-react';
 import apiClient from '../lib/axios';
 import { jsonToast } from '../lib/jsonToast';
 import { Lottie } from 'lottie-react';
@@ -162,7 +164,27 @@ export default function Profile() {
         {/* ── Animate between view / edit modes ── */}
         <AnimatePresence mode="wait">
           {!editing ? (
-            <ProfileView key="view" user={user} onEdit={isOwner ? () => setEditing(true) : null} />
+            <ProfileView 
+              key="view" 
+              user={user} 
+              onEdit={isOwner ? () => setEditing(true) : null} 
+              currentUser={currentUser}
+              isFollowing={currentUser?.following?.some(id => id === user?._id) || false}
+              onToggleFollow={async () => {
+                if (!currentUser) return;
+                try {
+                  const res = await apiClient.post(`/users/u/${user.username}/follow`);
+                  // Refresh users to update followers/following lists
+                  const refreshMe = await apiClient.get('/users/me');
+                  setUser(refreshMe.data.data.user);
+                  const refreshProfile = await apiClient.get(`/users/u/${user.username}`);
+                  setProfileUser(refreshProfile.data.data.user);
+                  jsonToast.success(res.data.message);
+                } catch (error) {
+                  jsonToast.error(error.response?.data?.message || 'Failed to toggle follow');
+                }
+              }}
+            />
           ) : (
             <ProfileEdit key="edit" user={user} onCancel={() => setEditing(false)} isUploading={uploading} />
           )}
@@ -173,47 +195,67 @@ export default function Profile() {
           RIGHT CONTENT AREA
           ════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 pr-12">
-        {activeTab === 'overview' && <ProfileReadme user={user} />}
+        {activeTab === 'overview' && <ProfileOverview user={user} isOwner={isOwner} />}
 
-        {activeTab === 'repositories' && (
-          <motion.main
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 min-h-[400px] flex items-center justify-center"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
-                <Book size={18} strokeWidth={1.4} className="text-gray-300" />
-              </div>
-              <p className="text-sm text-gray-400 font-medium mb-1">
-                Repositories
-              </p>
-              <p className="text-xs text-gray-300">
-                You don't have any public repositories yet.
-              </p>
-            </div>
-          </motion.main>
-        )}
+        {activeTab === 'repositories' && <ProfileRepos user={user} />}
 
         {activeTab === 'stars' && (
           <motion.main
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 min-h-[400px] flex items-center justify-center"
+            className="w-full"
           >
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
-                <Star size={18} strokeWidth={1.4} className="text-gray-300" />
+            {user?.starredRepos && user.starredRepos.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {user.starredRepos.map((repo) => (
+                  <div key={repo._id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Book size={16} className="text-gray-400" />
+                        <a href={`/repo/${repo.owner?.username || user.username}/${repo.name}`} className="font-semibold text-blue-600 hover:underline text-sm">
+                          {repo.owner?.username}/{repo.name}
+                        </a>
+                        <span className="px-2 py-0.5 rounded-full border border-gray-200 text-gray-500 text-[10px] font-semibold">
+                          {repo.isPrivate ? 'Private' : 'Public'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 mt-2">
+                        {repo.description || 'No description provided.'}
+                      </p>
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-gray-500">
+                      {repo.language && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-400" />
+                          {repo.language}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Star size={14} className="text-gray-400" />
+                        {repo.starsCount || 0}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <p className="text-sm text-gray-400 font-medium mb-1">
-                Starred
-              </p>
-              <p className="text-xs text-gray-300">
-                You haven't starred any repositories yet.
-              </p>
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 min-h-[400px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <Star size={18} strokeWidth={1.4} className="text-gray-300" />
+                  </div>
+                  <p className="text-sm text-gray-400 font-medium mb-1">
+                    Starred
+                  </p>
+                  <p className="text-xs text-gray-300">
+                    {isOwner 
+                      ? "You haven't starred any repositories yet." 
+                      : `${user?.name || user?.username} hasn't starred any repositories yet.`}
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.main>
         )}
 

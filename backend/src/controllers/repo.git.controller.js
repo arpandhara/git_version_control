@@ -3,93 +3,102 @@ const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/ApiError');
 const Repository = require('../models/Repository.model');
 const GitObject = require('../models/GitObject.model');
+const { decodeGitBlobBytes, looksLikeText } = require('../utils/blobEncoding');
 const User = require('../models/User.model');
 const mongoose = require('mongoose');
-const { resolveUser, resolveRepo } = require('../utils/repoHelpers');
+const { resolveUser, resolveRepo, parseGitObjectData } = require('../utils/repoHelpers');
 const { getCommitGraph, generateUnifiedDiff, flattenTree } = require('../utils/gitHelpers');
 
 async function getLastCommitsForEntries(repoId, startCommitHash, pathSegments, entries) {
     const unresolved = new Set(entries.map(e => e.name));
     const result = {};
-    let currentHash = startCommitHash;
+    const objCache = new Map();
     let limit = 50; // Max commits to traverse to prevent hanging
 
-    while (unresolved.size > 0 && currentHash && limit > 0) {
-        limit--;
-        let commitObj = await GitObject.findOne({ repositoryId: repoId, hash: currentHash, type: 'commit' });
-        if (!commitObj) commitObj = await GitObject.findOne({ hash: currentHash, type: 'commit' });
-        if (!commitObj) break;
+    async function getGitObj(hash, type) {
+        if (!hash) return null;
+        if (objCache.has(hash)) return objCache.get(hash);
+        const obj = await GitObject.findOne({ repositoryId: Array.isArray(repoId) ? { $in: repoId } : repoId, hash, type }).lean();
+        if (obj) {
+            try {
+                obj.parsed = parseGitObjectData(obj) || {};
+            } catch {
+                obj.parsed = {};
+            }
+        }
+        objCache.set(hash, obj);
+        return obj;
+    }
 
-        const currData = typeof commitObj.data === 'string' ? JSON.parse(commitObj.data) : commitObj.data;
+    async function getTreeHashForPath(rootTreeHash, segments) {
+        if (!segments || segments.length === 0) return rootTreeHash;
+        let currentTree = rootTreeHash;
+        for (const seg of segments) {
+            if (!currentTree) return null;
+            const tObj = await getGitObj(currentTree, 'tree');
+            if (!tObj) return null;
+            const match = tObj.parsed?.entries?.find(e => e.name === seg && e.object_type === 'tree');
+            currentTree = match ? match.object_hash : null;
+        }
+        return currentTree;
+    }
+
+    let currCommitObj = await getGitObj(startCommitHash, 'commit');
+    let currDirHash = currCommitObj?.parsed?.tree ? await getTreeHashForPath(currCommitObj.parsed.tree, pathSegments) : null;
+
+    while (unresolved.size > 0 && currCommitObj && limit > 0) {
+        limit--;
+        const currData = currCommitObj.parsed || {};
         const parentHash = currData.parent || (currData.parents && currData.parents.length > 0 ? currData.parents[0] : null);
 
         if (!parentHash) {
             // First commit ever, everything left was created here
             for (const name of unresolved) {
-                result[name] = { hash: currentHash, message: currData.message, date: currData.date || commitObj.createdAt, author: currData.author };
+                result[name] = { hash: currCommitObj.hash, message: currData.message, date: currData.date || currCommitObj.createdAt, author: currData.author };
             }
             break;
         }
 
-        async function getTreeHashForPath(rootTreeHash, segments) {
-            if (!segments || segments.length === 0) return rootTreeHash;
-            let currentTree = rootTreeHash;
-            for (const seg of segments) {
-                if (!currentTree) return null;
-                let tObj = await GitObject.findOne({ repositoryId: repoId, hash: currentTree, type: 'tree' });
-                if (!tObj) tObj = await GitObject.findOne({ hash: currentTree, type: 'tree' });
-                if (!tObj) return null;
-                const tData = typeof tObj.data === 'string' ? JSON.parse(tObj.data) : tObj.data;
-                const match = tData.entries?.find(e => e.name === seg && e.object_type === 'tree');
-                currentTree = match ? match.object_hash : null;
-            }
-            return currentTree;
-        }
-
-        const currDirHash = await getTreeHashForPath(currData.tree, pathSegments);
-        
-        let parentCommitObj = await GitObject.findOne({ repositoryId: repoId, hash: parentHash, type: 'commit' });
-        if (!parentCommitObj) parentCommitObj = await GitObject.findOne({ hash: parentHash, type: 'commit' });
+        const parentCommitObj = await getGitObj(parentHash, 'commit');
         if (!parentCommitObj) {
             for (const name of unresolved) {
-                result[name] = { hash: currentHash, message: currData.message, date: currData.date || commitObj.createdAt, author: currData.author };
+                result[name] = { hash: currCommitObj.hash, message: currData.message, date: currData.date || currCommitObj.createdAt, author: currData.author };
             }
             break;
         }
-        
-        const parentData = typeof parentCommitObj.data === 'string' ? JSON.parse(parentCommitObj.data) : parentCommitObj.data;
+
+        const parentData = parentCommitObj.parsed || {};
         const parentDirHash = await getTreeHashForPath(parentData.tree, pathSegments);
 
         if (currDirHash !== parentDirHash) {
             if (!parentDirHash) {
                 for (const name of unresolved) {
-                    result[name] = { hash: currentHash, message: currData.message, date: currData.date || commitObj.createdAt, author: currData.author };
+                    result[name] = { hash: currCommitObj.hash, message: currData.message, date: currData.date || currCommitObj.createdAt, author: currData.author };
                 }
                 break;
             }
 
-            let currTreeObj = await GitObject.findOne({ repositoryId: repoId, hash: currDirHash, type: 'tree' });
-            if (!currTreeObj) currTreeObj = await GitObject.findOne({ hash: currDirHash, type: 'tree' });
-            
-            let parentTreeObj = await GitObject.findOne({ repositoryId: repoId, hash: parentDirHash, type: 'tree' });
-            if (!parentTreeObj) parentTreeObj = await GitObject.findOne({ hash: parentDirHash, type: 'tree' });
+            const currTreeObj = currDirHash ? await getGitObj(currDirHash, 'tree') : null;
+            const parentTreeObj = parentDirHash ? await getGitObj(parentDirHash, 'tree') : null;
 
-            const currTreeData = currTreeObj ? (typeof currTreeObj.data === 'string' ? JSON.parse(currTreeObj.data) : currTreeObj.data) : { entries: [] };
-            const parentTreeData = parentTreeObj ? (typeof parentTreeObj.data === 'string' ? JSON.parse(parentTreeObj.data) : parentTreeObj.data) : { entries: [] };
+            const currTreeData = currTreeObj?.parsed || { entries: [] };
+            const parentTreeData = parentTreeObj?.parsed || { entries: [] };
 
             const getEntryHash = (treeData, name) => treeData.entries?.find(e => e.name === name)?.object_hash;
 
             for (const name of Array.from(unresolved)) {
                 if (getEntryHash(currTreeData, name) !== getEntryHash(parentTreeData, name)) {
-                    result[name] = { hash: currentHash, message: currData.message, date: currData.date || commitObj.createdAt, author: currData.author };
+                    result[name] = { hash: currCommitObj.hash, message: currData.message, date: currData.date || currCommitObj.createdAt, author: currData.author };
                     unresolved.delete(name);
                 }
             }
         }
 
-        currentHash = parentHash;
+        // Advance to parent without re-querying or re-parsing the commit or tree
+        currCommitObj = parentCommitObj;
+        currDirHash = parentDirHash;
     }
-    
+
     return result;
 }
 
@@ -101,6 +110,8 @@ const getRepoTree = asyncHandler(async (req, res) => {
     const repoDoc = await resolveRepo(owner, repo, req.user);
     if (!repoDoc) throw new ApiError(404, 'Repository not found');
 
+    const repoIds = [repoDoc._id, repoDoc.parentRepo, repoDoc.rootRepo].filter(Boolean);
+
     // 1. Resolve commit hash from branch or direct commit hash
     let commitHash = null;
     const branch = repoDoc.branches.find((b) => b.name === ref);
@@ -108,7 +119,7 @@ const getRepoTree = asyncHandler(async (req, res) => {
         commitHash = branch.commitHash;
     } else {
         const commitObj = await GitObject.findOne({
-            repositoryId: repoDoc._id,
+            repositoryId: { $in: repoIds },
             hash: ref,
             type: 'commit',
         });
@@ -129,22 +140,19 @@ const getRepoTree = asyncHandler(async (req, res) => {
     }
 
     // 2. Load root commit
-    let commitObj = await GitObject.findOne({
-        repositoryId: repoDoc._id,
+    const commitObj = await GitObject.findOne({
+        repositoryId: { $in: repoIds },
         hash: commitHash,
         type: 'commit',
     });
-    if (!commitObj) {
-        commitObj = await GitObject.findOne({
-            hash: commitHash,
-            type: 'commit',
-        });
-    }
     if (!commitObj) throw new ApiError(404, 'Commit not found');
 
     let commitData;
     try {
-        commitData = typeof commitObj.data === 'string' ? JSON.parse(commitObj.data) : commitObj.data;
+        commitData = parseGitObjectData(commitObj);
+        if (!commitData || typeof commitData !== 'object') {
+            throw new Error('Not an object');
+        }
     } catch {
         throw new ApiError(500, 'Invalid commit format');
     }
@@ -159,19 +167,13 @@ const getRepoTree = asyncHandler(async (req, res) => {
     // 3. Load root tree
     let currentTreeHash = commitData.tree;
     let currentTreeObj = await GitObject.findOne({
-        repositoryId: repoDoc._id,
+        repositoryId: { $in: repoIds },
         hash: currentTreeHash,
         type: 'tree',
     });
-    if (!currentTreeObj) {
-        currentTreeObj = await GitObject.findOne({
-            hash: currentTreeHash,
-            type: 'tree',
-        });
-    }
     if (!currentTreeObj) throw new ApiError(404, 'Root tree not found');
 
-    let rootTreeData = typeof currentTreeObj.data === 'string' ? JSON.parse(currentTreeObj.data) : currentTreeObj.data;
+    let rootTreeData = parseGitObjectData(currentTreeObj);
     let treeData = rootTreeData;
 
 
@@ -181,25 +183,19 @@ const getRepoTree = asyncHandler(async (req, res) => {
     if (cleanPath) {
         const segments = cleanPath.split('/').filter(Boolean);
         for (const segment of segments) {
-            const match = treeData.entries.find(
+            const match = treeData?.entries?.find(
                 (e) => e.name === segment && e.object_type === 'tree'
             );
             if (!match) {
                 throw new ApiError(404, `Directory '${segment}' not found in path '${cleanPath}'`);
             }
             currentTreeObj = await GitObject.findOne({
-                repositoryId: repoDoc._id,
+                repositoryId: { $in: repoIds },
                 hash: match.object_hash,
                 type: 'tree',
             });
-            if (!currentTreeObj) {
-                currentTreeObj = await GitObject.findOne({
-                    hash: match.object_hash,
-                    type: 'tree',
-                });
-            }
             if (!currentTreeObj) throw new ApiError(404, `Tree object not found for ${segment}`);
-            treeData = typeof currentTreeObj.data === 'string' ? JSON.parse(currentTreeObj.data) : currentTreeObj.data;
+            treeData = parseGitObjectData(currentTreeObj);
         }
     }
 
@@ -210,7 +206,7 @@ const getRepoTree = asyncHandler(async (req, res) => {
     });
 
     const pathSegments = cleanPath ? cleanPath.split('/').filter(Boolean) : [];
-    const entryCommits = await getLastCommitsForEntries(repoDoc._id, commitHash, pathSegments, entries);
+    const entryCommits = await getLastCommitsForEntries(repoIds, commitHash, pathSegments, entries);
     entries = entries.map(e => ({
         ...e,
         commit: entryCommits[e.name] || null
@@ -219,11 +215,11 @@ const getRepoTree = asyncHandler(async (req, res) => {
     let fullTree = null;
     if (recursive === 'true' || recursive === '1' || recursive === true) {
         // Bulk-fetch ALL tree objects for this repo in one query, then walk in-memory (avoids N+1)
-        const allTreeObjs = await GitObject.find({ repositoryId: repoDoc._id, type: 'tree' });
+        const allTreeObjs = await GitObject.find({ repositoryId: { $in: repoIds }, type: 'tree' });
         const treeMap = new Map();
         for (const t of allTreeObjs) {
             try {
-                treeMap.set(t.hash, typeof t.data === 'string' ? JSON.parse(t.data) : t.data);
+                treeMap.set(t.hash, parseGitObjectData(t));
             } catch { /* skip malformed */ }
         }
 
@@ -277,30 +273,62 @@ const getRepoBlob = asyncHandler(async (req, res) => {
     const repoDoc = await resolveRepo(owner, repo, req.user);
     if (!repoDoc) throw new ApiError(404, 'Repository not found');
 
-    // Security: deny access to blobs in private repos for non-owners
-    if (repoDoc.isPrivate && (!req.user || repoDoc.owner.toString() !== req.user._id.toString())) {
-        throw new ApiError(403, 'Access denied to private repository');
-    }
-
+    const repoIds = [repoDoc._id, repoDoc.parentRepo, repoDoc.rootRepo].filter(Boolean);
     let blobObj = await GitObject.findOne({
-        repositoryId: repoDoc._id,
+        repositoryId: { $in: repoIds },
         hash,
         type: 'blob',
     });
+
     if (!blobObj) {
-        blobObj = await GitObject.findOne({
-            hash,
-            type: 'blob',
-        });
+        const rootId = repoDoc.rootRepo || repoDoc.parentRepo || repoDoc._id;
+        const related = await Repository.find({
+            $or: [{ _id: rootId }, { rootRepo: rootId }, { parentRepo: rootId }]
+        }).select('_id').lean();
+        const relatedIds = related.map(r => r._id).filter(id => !repoIds.some(existing => existing.toString() === id.toString()));
+        if (relatedIds.length > 0) {
+            blobObj = await GitObject.findOne({
+                repositoryId: { $in: relatedIds },
+                hash,
+                type: 'blob',
+            });
+        }
     }
+
     if (!blobObj) throw new ApiError(404, 'File content not found');
+
+    // AUDIT finding 1 follow-up: the Rusty CLI pushes every object (text or
+    // binary) as base64 with encoding: 'base64'. Unwrap that transport layer
+    // here so text files are served as UTF-8 and rendered normally; true
+    // binary stays base64 so the UI offers a "binary" preview and download.
+    // (The CLI wire endpoints are untouched — the CLI must still receive
+    // encoded payloads to verify against their hash.)
+    const blobBytes = decodeGitBlobBytes(blobObj);
+    const textContent = looksLikeText(blobBytes) ? blobBytes.toString('utf8') : null;
+
+    let content;
+    let encoding;
+
+    if (textContent !== null) {
+        content = textContent;
+        encoding = 'utf8';
+    } else if (blobObj.encoding === 'base64') {
+        content = blobObj.data;
+        encoding = 'base64';
+    } else {
+        // Binary content stored without the base64 marker (pre-encoding-era
+        // legacy data). Re-wrap so the UI consistently shows a binary preview.
+        content = Buffer.from(blobObj.data || '', 'utf8').toString('base64');
+        encoding = 'base64';
+    }
 
     res.status(200).json({
         success: true,
         data: {
             hash: blobObj.hash,
-            content: blobObj.data,
-            size: Buffer.byteLength(blobObj.data || '', 'utf8'),
+            content,
+            encoding,
+            size: blobBytes.length,
         },
     });
 });
@@ -317,38 +345,54 @@ const getRepoCommits = asyncHandler(async (req, res) => {
     if (branch) currentHash = branch.commitHash;
     else currentHash = ref;
 
-    // Bulk-fetch ALL commit objects for this repo in one query — avoids N+1
-    const allCommitObjs = await GitObject.find({ repositoryId: repoDoc._id, type: 'commit' });
-    const commitMap = new Map();
-    for (const obj of allCommitObjs) {
-        try {
-            const parsed = typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data;
-            commitMap.set(obj.hash, { parsed, createdAt: obj.createdAt });
-        } catch { /* skip malformed objects */ }
-    }
-
-    // Walk parent chain in-memory — same ordering and 50-commit cap as before
+    // Walk parent chain in frontier batches up to 50 commits — avoids loading all commits in repo
     const commits = [];
     const visited = new Set();
+    const commitMap = new Map();
+    let frontier = currentHash ? [currentHash] : [];
 
-    while (currentHash && !visited.has(currentHash) && commits.length < 50) {
-        visited.add(currentHash);
-        const entry = commitMap.get(currentHash);
-        if (!entry) break;
+    while (frontier.length > 0 && commits.length < 50) {
+        const toFetch = frontier.filter(h => !commitMap.has(h));
+        if (toFetch.length > 0) {
+            const objs = await GitObject.find({
+                repositoryId: repoDoc._id,
+                hash: { $in: toFetch },
+                type: 'commit'
+            }).lean();
+            for (const obj of objs) {
+                try {
+                    const parsed = parseGitObjectData(obj);
+                    commitMap.set(obj.hash, { parsed, createdAt: obj.createdAt });
+                } catch { /* skip malformed */ }
+            }
+        }
 
-        const commitData = entry.parsed;
-        
-        const parentHash = commitData.parent || (commitData.parents && commitData.parents.length > 0 ? commitData.parents[0] : null);
-        
-        commits.push({
-            hash: currentHash,
-            message: commitData.message,
-            tree: commitData.tree,
-            parent: parentHash,
-            author: commitData.author || repoDoc.latestCommit?.author || 'Contributor',
-            date: commitData.date || repoDoc.latestCommit?.date || entry.createdAt,
-        });
-        currentHash = parentHash;
+        const nextFrontier = [];
+        for (const h of frontier) {
+            if (visited.has(h) || commits.length >= 50) continue;
+            visited.add(h);
+
+            const entry = commitMap.get(h);
+            if (!entry) continue;
+
+            const commitData = entry.parsed;
+            const parentHash = commitData.parent || (commitData.parents && commitData.parents.length > 0 ? commitData.parents[0] : null);
+
+            commits.push({
+                hash: h,
+                message: commitData.message,
+                tree: commitData.tree,
+                parent: parentHash,
+                author: commitData.author || repoDoc.latestCommit?.author || 'Contributor',
+                date: commitData.date || repoDoc.latestCommit?.date || entry.createdAt,
+            });
+
+            if (parentHash && !visited.has(parentHash)) {
+                nextFrontier.push(parentHash);
+            }
+            if (commits.length >= 50) break;
+        }
+        frontier = nextFrontier;
     }
 
     // Resolve profile pictures for unique authors — single batch query
@@ -391,8 +435,8 @@ const deleteRepoFile = asyncHandler(async (req, res) => {
     const commitObj = await GitObject.findOne({ repositoryId: repoDoc._id, hash: branch.commitHash, type: 'commit' });
     if (!commitObj) throw new ApiError(404, 'Commit not found');
 
-    const commitData = typeof commitObj.data === 'string' ? JSON.parse(commitObj.data) : commitObj.data;
-    const rootTreeHash = commitData.tree;
+    const commitData = parseGitObjectData(commitObj);
+    const rootTreeHash = commitData?.tree;
 
     // pathSegments already extracted above
     
@@ -400,8 +444,8 @@ const deleteRepoFile = asyncHandler(async (req, res) => {
         const treeObj = await GitObject.findOne({ repositoryId, hash: treeHash, type: 'tree' });
         if (!treeObj) throw new ApiError(404, 'Tree object not found');
         
-        let parsed = typeof treeObj.data === 'string' ? JSON.parse(treeObj.data) : treeObj.data;
-        let entries = parsed.entries || [];
+        let parsed = parseGitObjectData(treeObj);
+        let entries = parsed?.entries || [];
         
         const segment = segments[0];
         const isTarget = segments.length === 1;
@@ -432,7 +476,7 @@ const deleteRepoFile = asyncHandler(async (req, res) => {
         if (!modified) return treeHash;
         
         const newData = JSON.stringify({ entries: newEntries });
-        const newHash = crypto.createHash('sha1').update('tree ' + newData + Date.now().toString()).digest('hex');
+        const newHash = crypto.createHash('sha256').update(newData).digest('hex');
         
         await GitObject.create({
             repositoryId,
@@ -460,7 +504,7 @@ const deleteRepoFile = asyncHandler(async (req, res) => {
     };
     
     const newCommitDataStr = JSON.stringify(newCommitData);
-    const newCommitHash = crypto.createHash('sha1').update('commit ' + newCommitDataStr + Date.now().toString()).digest('hex');
+    const newCommitHash = crypto.createHash('sha256').update(newCommitDataStr).digest('hex');
 
     await GitObject.create({
         repositoryId: repoDoc._id,
@@ -490,10 +534,6 @@ const downloadRepoZip = asyncHandler(async (req, res) => {
     const repoDoc = await resolveRepo(owner, repo, req.user);
     if (!repoDoc) throw new ApiError(404, 'Repository not found');
 
-    if (repoDoc.isPrivate && (!req.user || repoDoc.owner.toString() !== req.user._id.toString())) {
-        throw new ApiError(403, 'Access denied to private repository');
-    }
-
     let commitHash = null;
     const branch = repoDoc.branches.find((b) => b.name === ref);
     if (branch) {
@@ -502,60 +542,68 @@ const downloadRepoZip = asyncHandler(async (req, res) => {
         commitHash = ref;
     }
 
-    let commitObj = await GitObject.findOne({
+    const commitObj = await GitObject.findOne({
         repositoryId: repoDoc._id,
         hash: commitHash,
         type: 'commit',
     });
-    if (!commitObj) {
-        commitObj = await GitObject.findOne({
-            hash: commitHash,
-            type: 'commit',
-        });
-    }
     if (!commitObj) throw new ApiError(404, 'Commit not found');
 
     let commitData;
     try {
-        commitData = typeof commitObj.data === 'string' ? JSON.parse(commitObj.data) : commitObj.data;
+        commitData = parseGitObjectData(commitObj);
+        if (!commitData || typeof commitData !== 'object') {
+            throw new Error('Not an object');
+        }
     } catch {
         throw new ApiError(500, 'Invalid commit format');
     }
 
-    const { buildRecursiveTree } = require('../utils/repoHelpers');
-    const treeMap = await buildRecursiveTree(commitData.tree, repoDoc._id);
+    const archiverModule = require('archiver');
+    const flatFiles = await flattenTree(repoDoc._id, commitData.tree);
 
-    const AdmZip = require('adm-zip');
-    const zip = new AdmZip();
-
-    const appendToArchive = async (nodes) => {
-        for (const node of nodes) {
-            if (node.object_type === 'blob') {
-                let blobObj = await GitObject.findOne({
-                    repositoryId: repoDoc._id,
-                    hash: node.object_hash,
-                    type: 'blob',
-                });
-                if (!blobObj) {
-                    blobObj = await GitObject.findOne({
-                        hash: node.object_hash,
-                        type: 'blob',
-                    });
-                }
-                if (blobObj && blobObj.data) {
-                    zip.addFile(node.path, Buffer.from(blobObj.data));
-                }
-            } else if (node.object_type === 'tree' && node.children) {
-                await appendToArchive(node.children);
-            }
-        }
-    };
-
-    await appendToArchive(treeMap);
-
-    const zipBuffer = zip.toBuffer();
     res.attachment(`${repoDoc.name}-${ref}.zip`);
-    res.status(200).send(zipBuffer);
+    res.setHeader('Content-Type', 'application/zip');
+
+    const archive = typeof archiverModule === 'function'
+        ? archiverModule('zip', { zlib: { level: 6 } })
+        : (archiverModule.ZipArchive ? new archiverModule.ZipArchive({ zlib: { level: 6 } }) : archiverModule.default('zip', { zlib: { level: 6 } }));
+
+    archive.on('error', (err) => {
+        throw err;
+    });
+    archive.pipe(res);
+
+    // Stream files in batches of 100 to prevent high RSS memory consumption
+    const fileEntries = Object.entries(flatFiles);
+    const BATCH_SIZE = 100;
+    for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
+        const batch = fileEntries.slice(i, i + BATCH_SIZE);
+        const hashes = [...new Set(batch.map(([, h]) => h))];
+        const blobs = await GitObject.find({
+            repositoryId: repoDoc._id,
+            hash: { $in: hashes },
+            type: 'blob'
+        }).lean();
+
+        const blobMap = new Map(blobs.map(b => [b.hash, b]));
+        for (const [filePath, bHash] of batch) {
+            const blobRecord = blobMap.get(bHash);
+            let fileBuffer;
+            if (blobRecord) {
+                if (blobRecord.encoding === 'base64') {
+                    fileBuffer = Buffer.from(blobRecord.data || '', 'base64');
+                } else {
+                    fileBuffer = Buffer.from(blobRecord.data || '', 'utf8');
+                }
+            } else {
+                fileBuffer = Buffer.from('', 'utf8');
+            }
+            archive.append(fileBuffer, { name: filePath });
+        }
+    }
+
+    await archive.finalize();
 });
 
 const compareBranches = asyncHandler(async (req, res) => {
@@ -657,25 +705,43 @@ const compareBranches = asyncHandler(async (req, res) => {
         let additions = 0;
         let deletions = 0;
         let diffText = '';
-        const isBinary = isBinaryExt(path);
+        let isBinary = isBinaryExt(path);
 
-        if (!isBinary && status !== 'deleted') {
-            const getBlob = async (h) => {
-                if (!h) return '';
-                const obj = await GitObject.findOne({ repositoryId: { $in: repoIds }, hash: h, type: 'blob' });
-                return obj ? obj.data : '';
-            };
-            const oldStr = await getBlob(bHash);
-            const newStr = await getBlob(hHash);
-            
-            const diffResult = generateUnifiedDiff(oldStr, newStr);
-            diffText = diffResult.diffText;
-            additions = diffResult.additions;
-            deletions = diffResult.deletions;
-        } else if (!isBinary && status === 'deleted') {
-            const obj = await GitObject.findOne({ repositoryId: { $in: repoIds }, hash: bHash, type: 'blob' });
-            const oldStr = obj ? obj.data : '';
-            deletions = oldStr.split('\n').length;
+        // AUDIT encoding follow-up: blobs may be stored base64-wrapped by
+        // the Rusty CLI. Decode to real bytes, then decide text-vs-binary
+        // by CONTENT (NUL sniffing), not just by extension: a ".txt" holding
+        // real binary bytes is diffed as binary, and a text file wrapped in
+        // base64 is diffed as text.
+        const readBlobContent = async (h) => {
+            if (!h) return { text: '', binary: false };
+            const obj = await GitObject.findOne({ repositoryId: { $in: repoIds }, hash: h, type: 'blob' });
+            if (!obj) return { text: '', binary: false };
+            const bytes = decodeGitBlobBytes(obj);
+            return looksLikeText(bytes)
+                ? { text: bytes.toString('utf8'), binary: false }
+                : { text: '', binary: true };
+        };
+
+        if (status !== 'deleted') {
+            const oldSide = await readBlobContent(bHash);
+            const newSide = await readBlobContent(hHash);
+
+            isBinary = isBinary || oldSide.binary || newSide.binary;
+
+            if (!isBinary) {
+                const diffResult = generateUnifiedDiff(oldSide.text, newSide.text);
+                diffText = diffResult.diffText;
+                additions = diffResult.additions;
+                deletions = diffResult.deletions;
+            }
+        } else {
+            const oldSide = await readBlobContent(bHash);
+
+            isBinary = isBinary || oldSide.binary;
+
+            if (!isBinary) {
+                deletions = oldSide.text.split('\n').length;
+            }
         }
 
         totalAdditions += additions;

@@ -1,4 +1,7 @@
 const GitObject = require('../models/GitObject.model');
+const { parseGitObjectData } = require('./repoHelpers');
+const { isSafeComponent, assertSafeRelativePath } = require('./pathSafety');
+const ApiError = require('./ApiError');
 
 const diff = require('diff');
 
@@ -68,7 +71,7 @@ async function getCommitGraph(repoId, headHash, baseHash) {
             const objs = await GitObject.find({ repositoryId: { $in: repoIds }, hash: { $in: hashesToFetch }, type: 'commit' });
             for (const obj of objs) {
                 try {
-                    commitMap.set(obj.hash, { parsed: typeof obj.data === 'string' ? JSON.parse(obj.data) : obj.data, createdAt: obj.createdAt });
+                    commitMap.set(obj.hash, { parsed: parseGitObjectData(obj), createdAt: obj.createdAt });
                 } catch {}
             }
         }
@@ -162,19 +165,18 @@ async function flattenTree(repoId, rootTreeHash) {
         // 3. Create a lookup map for instant access
         const treeMap = {};
         for (const obj of treeObjects) {
-            treeMap[obj.hash] = obj.data;
+            treeMap[obj.hash] = parseGitObjectData(obj);
         }
 
         const nextQueue = [];
 
         // 4. Process the current queue and queue up the next level of trees
         for (const { hash, prefix } of queue) {
-            const dataStr = treeMap[hash];
-            if (!dataStr) continue;
+            const parsed = treeMap[hash];
+            if (!parsed) continue;
 
             let entries = [];
             try {
-                const parsed = JSON.parse(dataStr);
                 entries = Array.isArray(parsed) ? parsed : (parsed.entries || []);
             } catch (e) {
                 entries = [];
@@ -184,7 +186,19 @@ async function flattenTree(repoId, rootTreeHash) {
                 const name = entry.name;
                 const type = entry.type || entry.object_type;
                 const entryHash = entry.hash || entry.object_hash;
-                
+
+                // AUDIT finding 2 (server side): tree entry names come from
+                // client content and reach path-shaped sinks downstream —
+                // ZIP archive entries (repo download), native-merge output
+                // persisted by buildAndSaveTree, and codespace file writes.
+                // Fail closed here so a hostile tree cannot flow anywhere.
+                if (!isSafeComponent(name)) {
+                    throw new ApiError(
+                        422,
+                        `Repository tree contains an unsafe file path: "${String(name || '').slice(0, 80)}"`
+                    );
+                }
+
                 const fullPath = prefix ? `${prefix}/${name}` : name;
                 
                 if (type === 'blob') {
@@ -209,6 +223,10 @@ const crypto = require('crypto');
 async function buildAndSaveTree(repoId, flatTree, userId) {
     const root = {};
     for (const [fullPath, hash] of Object.entries(flatTree)) {
+        // AUDIT finding 2 (server side): flat-tree keys become tree entry
+        // names. Validate before they are re-assembled into tree objects.
+        assertSafeRelativePath(fullPath, 'Tree path');
+
         const parts = fullPath.split('/');
         let current = root;
         for (let i = 0; i < parts.length - 1; i++) {

@@ -39,7 +39,7 @@ class FileService {
         const absolutePath = path.resolve(userWorkspace, relativePath);
 
         // Security Check: Ensure the resolved path strictly starts with the user's workspace path
-        if (!absolutePath.startsWith(userWorkspace)) {
+        if (absolutePath !== userWorkspace && !absolutePath.startsWith(userWorkspace + path.sep)) {
             throw new Error('Access Denied: Path traversal detected.');
         }
 
@@ -64,6 +64,23 @@ class FileService {
         await fs.rm(userWorkspace, { recursive: true, force: true });
         await fs.mkdir(userWorkspace, { recursive: true });
         return userWorkspace;
+    }
+
+    /**
+     * Completely removes the user's workspace directory from disk when codespace is closed.
+     */
+    static async deleteWorkspace(userId) {
+        const userWorkspace = this.getSecurePath(userId);
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await fs.rm(userWorkspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+                return { success: true };
+            } catch (err) {
+                if (attempt === 3) throw err;
+                await new Promise(res => setTimeout(res, 250));
+            }
+        }
+        return { success: true };
     }
 
     /**
@@ -142,10 +159,19 @@ class FileService {
 
     /**
      * Updates an existing file's content.
+     * Accepts a UTF-8 string (text files) or a Buffer (binary blobs,
+     * written byte-exact so images/archives survive a CLI push round-trip).
      */
     static async updateFile(userId, filePath, content) {
         const securePath = this.getSecurePath(userId, filePath);
-        await fs.writeFile(securePath, content, 'utf8');
+        await fs.mkdir(path.dirname(securePath), { recursive: true });
+
+        if (Buffer.isBuffer(content)) {
+            await fs.writeFile(securePath, content);
+        } else {
+            await fs.writeFile(securePath, content, 'utf8');
+        }
+
         return { success: true };
     }
 
@@ -161,6 +187,33 @@ class FileService {
             await fs.unlink(securePath);
         }
         return { success: true };
+    }
+
+    /**
+     * Recursively retrieves all workspace files as { relativePath: utf8Content }
+     */
+    static async getAllFilesFlat(userId) {
+        const userWorkspace = await this.ensureWorkspace(userId);
+        const result = {};
+
+        async function walk(dir, relPath = '') {
+            const entries = await fs.readdir(dir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.name.startsWith('.') || entry.name === '__pycache__' || entry.name === 'node_modules') {
+                    continue;
+                }
+                const fullPath = path.join(dir, entry.name);
+                const itemRel = relPath ? `${relPath}/${entry.name}` : entry.name;
+                if (entry.isDirectory()) {
+                    await walk(fullPath, itemRel);
+                } else if (entry.isFile()) {
+                    result[itemRel] = await fs.readFile(fullPath, 'utf8');
+                }
+            }
+        }
+
+        await walk(userWorkspace);
+        return result;
     }
 }
 

@@ -364,13 +364,20 @@ export default function PRCreateView({ newPr, setNewPr, branches, prMetadata = {
             )}
 
             {!compareData.mergeable && compareData.conflictFiles?.length > 0 && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                <h4 className="text-xs font-bold text-red-800 flex items-center gap-1 mb-2"><AlertTriangle size={14}/> Conflicting files</h4>
-                <ul className="text-xs text-red-700 font-mono ml-5 list-disc">
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1.5 px-0.5">
+                  <span className="font-medium text-gray-700">
+                    Conflicting files ({compareData.conflictFiles.length})
+                  </span>
+                  <span>Resolve before merging</span>
+                </div>
+                <div className="rounded border border-gray-200 bg-[#f6f8fa] divide-y divide-gray-200 text-xs font-mono">
                   {compareData.conflictFiles.map((c, i) => (
-                    <li key={i}>{c.path} <span className="text-red-400 text-[10px]">({c.kind || 'conflict'})</span></li>
+                    <div key={i} className="px-2.5 py-1 text-gray-700 truncate">
+                      {c.path || (typeof c === 'string' ? c : 'unknown')}
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
           </div>

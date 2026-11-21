@@ -7,6 +7,7 @@ const GitObject = require('../models/GitObject.model');
 const { resolveRepo, updateBranchCommit, parseGitObjectData } = require('../utils/repoHelpers');
 const { flattenTree, buildAndSaveTree } = require('../utils/gitHelpers');
 const { canUserPushToRepo, getUserRepoRole } = require('../utils/permissionHelpers');
+const { decodeGitBlobBytes, looksLikeText } = require('../utils/blobEncoding');
 
 /**
  * Helper to determine workspace ID (scopes workspace strictly to authenticated user or isolated guest)
@@ -116,8 +117,12 @@ const loadCodespace = async (req, res) => {
             const blobObj = await GitObject.findOne({ hash, type: 'blob' });
             if (!blobObj) return res.status(404).json({ error: 'Blob not found' });
 
+            // CLI-pushed blobs arrive base64-wrapped; decode to real bytes
+            // and write text as text (binary stays a Buffer).
+            const blobBytes = decodeGitBlobBytes(blobObj);
+
             await FileService.create(workspaceId, filename, 'file');
-            await FileService.updateFile(workspaceId, filename, blobObj.data);
+            await FileService.updateFile(workspaceId, filename, looksLikeText(blobBytes) ? blobBytes.toString('utf8') : blobBytes);
 
             return res.json({ success: true, type: 'file' });
         } else if (type === 'repo') {
@@ -149,14 +154,20 @@ const loadCodespace = async (req, res) => {
                                 type: 'blob'
                             }).lean();
                             for (const b of blobObjs) {
-                                blobMap.set(b.hash, b.data);
+                                // Decode CLI base64 wrapping to real bytes.
+                                blobMap.set(b.hash, decodeGitBlobBytes(b));
                             }
                         }
 
-                        // Write files directly to sandbox
+                        // Write files directly to sandbox; text decodes back
+                        // to UTF-8, binary blobs are written byte-exact.
                         for (const [filePath, bHash] of Object.entries(flatFiles)) {
-                            const content = blobMap.get(bHash) ?? '';
-                            await FileService.updateFile(workspaceId, filePath, content);
+                            const blobBytes = blobMap.get(bHash) ?? Buffer.alloc(0);
+                            await FileService.updateFile(
+                                workspaceId,
+                                filePath,
+                                looksLikeText(blobBytes) ? blobBytes.toString('utf8') : blobBytes
+                            );
                         }
                     }
                 }

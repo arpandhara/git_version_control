@@ -19,14 +19,14 @@ const setRefreshTokenCookie = (res, token) => {
 };
 
 
-// Helper to keep only the most recent 5 active refresh tokens to prevent DB bloat
+// Helper to keep only the most recent 3 active refresh tokens to prevent DB bloat
 const cleanupOldSessions = async (userId) => {
     const activeTokens = await Token.find({ userId, type: 'REFRESH_TOKEN', isRevoked: false })
         .sort({ createdAt: -1 }); // Newest first
 
-    if (activeTokens.length >= 5) {
-        // Keep the 4 most recent ones (plus the 1 we are about to create = 5)
-        const tokensToRevoke = activeTokens.slice(4).map(t => t._id);
+    if (activeTokens.length >= 3) {
+        // Keep the 2 most recent ones (plus the 1 we are about to create = 3)
+        const tokensToRevoke = activeTokens.slice(2).map(t => t._id);
         if (tokensToRevoke.length > 0) {
             await Token.updateMany(
                 { _id: { $in: tokensToRevoke } },
